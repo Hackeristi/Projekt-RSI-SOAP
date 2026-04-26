@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "dgSpecHash": "Kssp9XS17zE=",
+  "success": true,
+  "projectFilePath": "C:\\_Moje foldery\\MAGISTERKA\\SEM1\\RSI\\Projekt\\Projekt1_Server\\Projekt1_Server\\Projekt1_Server.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\karin\\.nuget\\packages\\microsoft.aspnetcore.openapi\\8.0.25\\microsoft.aspnetcore.openapi.8.0.25.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\microsoft.extensions.apidescription.server\\6.0.5\\microsoft.extensions.apidescription.server.6.0.5.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\microsoft.extensions.objectpool\\8.0.10\\microsoft.extensions.objectpool.8.0.10.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\microsoft.openapi\\1.6.14\\microsoft.openapi.1.6.14.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\microsoft.visualstudio.liveshare\\1.1.57\\microsoft.visualstudio.liveshare.1.1.57.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\soapcore\\1.2.1.13\\soapcore.1.2.1.13.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\swashbuckle.aspnetcore\\6.6.2\\swashbuckle.aspnetcore.6.6.2.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.6.2\\swashbuckle.aspnetcore.swagger.6.6.2.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\6.6.2\\swashbuckle.aspnetcore.swaggergen.6.6.2.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\swashbuckle.aspnetcore.swaggerui\\6.6.2\\swashbuckle.aspnetcore.swaggerui.6.6.2.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.codedom\\9.0.2\\system.codedom.9.0.2.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.composition\\1.1.0\\system.composition.1.1.0.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.composition.attributedmodel\\1.1.0\\system.composition.attributedmodel.1.1.0.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.composition.convention\\1.1.0\\system.composition.convention.1.1.0.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.composition.hosting\\1.1.0\\system.composition.hosting.1.1.0.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.composition.runtime\\1.1.0\\system.composition.runtime.1.1.0.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.composition.typedparts\\1.1.0\\system.composition.typedparts.1.1.0.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.security.cryptography.pkcs\\8.0.1\\system.security.cryptography.pkcs.8.0.1.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.security.cryptography.xml\\8.0.2\\system.security.cryptography.xml.8.0.2.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.servicemodel.http\\8.1.1\\system.servicemodel.http.8.1.1.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\system.servicemodel.primitives\\8.1.1\\system.servicemodel.primitives.8.1.1.nupkg.sha512"
+  ],
+  "logs": []
+}

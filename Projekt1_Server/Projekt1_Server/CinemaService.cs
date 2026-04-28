@@ -22,6 +22,7 @@ public class CinemaService : ICinemaService
 		var moviesList = _context.FilmShows
 			.Select(show => new MovieDto
 			{
+				MovieId = show.MovieId,
 				ShowId = show.FilmShowId,
 				Title = show.Movie.Title,
 				Genre = show.Movie.Genre,
@@ -41,6 +42,7 @@ public class CinemaService : ICinemaService
 
 		var movieDetails = new MovieDetailsDto
 		{
+			MovieId = movie.MovieId,
 			Title = movie.Title,
 			Description = movie.Description,
 			Director = movie.Director,

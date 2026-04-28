@@ -33,7 +33,9 @@ public class CinemaService : ICinemaService
 
 	public MovieDetailsDto GetMovieDetails(int movieId)
 	{
-		var movie = _context.Movies.FirstOrDefault(movie => movie.MovieId == movieId);
+		var movie = _context.Movies
+			.Include(m => m.Actors)
+			.FirstOrDefault(movie => movie.MovieId == movieId);
 		
 		if(movie==null)
 		{
@@ -46,7 +48,9 @@ public class CinemaService : ICinemaService
 			Title = movie.Title,
 			Description = movie.Description,
 			Director = movie.Director,
-			Actors = movie.Actors,
+			Actors = movie.Actors
+				.Select(a => $"{a.Name} {a.Surmane}")
+				.ToList(),
 			Duration = movie.Duration,
 			Premiere = movie.Premiere,
 			Poster = movie.Poster

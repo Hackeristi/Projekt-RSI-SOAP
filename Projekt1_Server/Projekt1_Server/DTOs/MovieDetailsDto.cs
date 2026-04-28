@@ -10,5 +10,5 @@ public class MovieDetailsDto
     public int Premiere { get; set; }
     public int Duration { get; set; }
     public byte[] Poster { get; set; }
-    public ICollection<Actor> Actors { get; set; } = new List<Actor>();
+    public List<string> Actors { get; set; }
 }

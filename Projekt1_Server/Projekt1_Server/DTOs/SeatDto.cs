@@ -1,4 +1,4 @@
-﻿namespace Projekt1_Server.Models;
+﻿namespace Projekt1_Server.DTOs;
 
 public class SeatDto
 {

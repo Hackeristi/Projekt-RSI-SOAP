@@ -7,13 +7,17 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 public class MainWindow extends Application {
-
     @Override
     public void start(Stage stage) throws Exception {
+        // Ładujemy MainWindow.fxml, który sam sobie zainicjalizuje BookingController
         Parent root = FXMLLoader.load(getClass().getResource("/MainWindow.fxml"));
         Scene scene = new Scene(root);
+
         stage.setTitle("Cinema Booking");
         stage.setScene(scene);
+
+        stage.setWidth(1280);
+        stage.setHeight(780);
         stage.show();
     }
 

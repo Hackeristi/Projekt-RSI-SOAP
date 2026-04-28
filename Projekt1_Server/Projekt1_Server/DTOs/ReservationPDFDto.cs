@@ -1,4 +1,4 @@
-﻿namespace DefaultNamespace;
+﻿namespace Projekt1_Server.DTOs;
 
 public class ReservationPDFDto
 {

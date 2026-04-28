@@ -1,4 +1,5 @@
-﻿namespace Projekt1_Server.Models;
+﻿using Projekt1_Server.Models;
+namespace Projekt1_Server.DTOs;
 
 public class MovieDetailsDto
 {
@@ -8,5 +9,5 @@ public class MovieDetailsDto
     public int Premiere { get; set; }
     public int Duration { get; set; }
     public byte[] Poster { get; set; }
-    public virtual ICollection<Actor> Actors { get; set; } = new List<Actor>();
+    public ICollection<Actor> Actors { get; set; } = new List<Actor>();
 }

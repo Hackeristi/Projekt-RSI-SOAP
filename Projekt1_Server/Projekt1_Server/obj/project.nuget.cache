@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "DMLBcYJ1nJI=",
+  "dgSpecHash": "TuivdK296rA=",
   "success": true,
   "projectFilePath": "C:\\_Moje foldery\\MAGISTERKA\\SEM1\\RSI\\Projekt_Server\\Projekt1_Server\\Projekt1_Server\\Projekt1_Server.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\karin\\.nuget\\packages\\azure.core\\1.35.0\\azure.core.1.35.0.nupkg.sha512",
     "C:\\Users\\karin\\.nuget\\packages\\azure.identity\\1.10.3\\azure.identity.1.10.3.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\bcrypt.net-next\\4.1.0\\bcrypt.net-next.4.1.0.nupkg.sha512",
     "C:\\Users\\karin\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\karin\\.nuget\\packages\\microsoft.aspnetcore.openapi\\8.0.25\\microsoft.aspnetcore.openapi.8.0.25.nupkg.sha512",
     "C:\\Users\\karin\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\6.0.0\\microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
@@ -50,6 +51,7 @@
     "C:\\Users\\karin\\.nuget\\packages\\microsoft.visualstudio.liveshare\\1.1.57\\microsoft.visualstudio.liveshare.1.1.57.nupkg.sha512",
     "C:\\Users\\karin\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
     "C:\\Users\\karin\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
+    "C:\\Users\\karin\\.nuget\\packages\\questpdf\\2026.2.4\\questpdf.2026.2.4.nupkg.sha512",
     "C:\\Users\\karin\\.nuget\\packages\\soapcore\\1.2.1.13\\soapcore.1.2.1.13.nupkg.sha512",
     "C:\\Users\\karin\\.nuget\\packages\\swashbuckle.aspnetcore\\6.6.2\\swashbuckle.aspnetcore.6.6.2.nupkg.sha512",
     "C:\\Users\\karin\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.6.2\\swashbuckle.aspnetcore.swagger.6.6.2.nupkg.sha512",

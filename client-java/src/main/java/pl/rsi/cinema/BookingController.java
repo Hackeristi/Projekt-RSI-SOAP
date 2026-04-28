@@ -21,6 +21,7 @@ import javafx.scene.layout.VBox;
 import pl.rsi.cinema.CinemaServerService.MovieDetails;
 import pl.rsi.cinema.dto.MovieFromServer;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -172,32 +173,53 @@ public class BookingController {
     }
 
     private void showMovieDetails(MovieFromServer movie) {
+        try {
+            MovieDetails details = serverService.getMovieDetails(movie.getMovieId());
 
-        if (titleLabel == null) {
-            System.out.println("UI not ready yet");
-            return;
+            // Wymuszenie aktualizacji w wątku JavaFX
+            javafx.application.Platform.runLater(() -> {
+                titleLabel.setText(details.getTitle());
+                directorLabel.setText(details.getDirector());
+                descriptionArea.setText(details.getDescription());
+                durationLabel.setText(details.getDuration() + " min");
+                yearLabel.setText(String.valueOf(details.getPremiere()));
+                actorsArea.setText("AKTORZY: " + details.getActors());
+                System.out.println("DEBUG: Pobrani aktorzy: [" + details.getActors() + "]"); // Sprawdź, czy tu nie ma
+                                                                                             // pustych
+                // nawiasów
+                if (details.getPoster() != null && !details.getPoster().isEmpty()) {
+                    byte[] imageBytes = Base64.getDecoder().decode(details.getPoster());
+                    coverImage.setImage(new Image(new ByteArrayInputStream(imageBytes)));
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        System.out.println("REQUEST MOVIE DETAILS ID = " + movie.getShowId());
-        System.out.println("CLICKED SHOW ID = " + movie.getShowId());
+    }
 
-        MovieDetails details = serverService.getMovieDetails(movie.getShowId());
+    private void updateAvailableTimes(String movieTitle) {
+        timeButtonsContainer.getChildren().clear(); // Czyścimy stare przyciski godzin
 
-        if (details == null)
+        String selectedDate = MovieDate.getValue(); // np. "28.04.2025"
+        if (selectedDate == null)
             return;
 
-        titleLabel.setText(movie.getTitle());
-        durationLabel.setText(details.getDuration() + " min");
-        genreLabel.setText(movie.getGenre());
-        yearLabel.setText(details.getPremiere().substring(0, 4));
-        directorLabel.setText(details.getDirector());
+        // Szukamy w liście 'movies' wszystkich seansów tego filmu w tym dniu
+        for (MovieFromServer m : movies) {
+            String movieDate = formatDate(m.getShowDateTime()); // "28.04"
 
-        actorsArea.setText(details.getActors());
-        descriptionArea.setText(details.getDescription());
+            // Sprawdzamy czy tytuł się zgadza i czy data (po sformatowaniu) pasuje
+            if (m.getTitle().equals(movieTitle) && selectedDate.contains(movieDate)) {
+                // Wyciągamy godzinę z formatu ISO "2025-04-28T18:30:00"
+                String time = m.getShowDateTime().split("T")[1].substring(0, 5);
 
-        if (details.getPoster() != null && !details.getPoster().isEmpty()) {
-            byte[] imageBytes = java.util.Base64.getDecoder().decode(details.getPoster());
-            Image image = new Image(new ByteArrayInputStream(imageBytes));
-            coverImage.setImage(image);
+                Button timeBtn = new Button(time);
+                timeBtn.getStyleClass().add("time-button"); // Użyj styli CSS lub setStyle
+                resetButtonToDefault(timeBtn);
+                timeBtn.setOnAction(this::handleTimeSelection);
+
+                timeButtonsContainer.getChildren().add(timeBtn);
+            }
         }
     }
 

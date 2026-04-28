@@ -157,7 +157,7 @@
                         </Label>
                         <VBox alignment="CENTER" prefHeight="272.0" prefWidth="203.0"
                             style="-fx-border-color: #313131; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-color: #1a1a1a;">
-                            <ImageView fitHeight="222.0" fitWidth="184.0" pickOnBounds="true"
+                            <ImageView fx:id="coverImage" fitHeight="222.0" fitWidth="184.0" pickOnBounds="true"
                                 preserveRatio="true" />
                         </VBox>
                     </VBox>
@@ -169,7 +169,7 @@
                             </font>
                         </Label>
                         <TextArea fx:id="actorsArea" editable="false" prefHeight="291.0" prefWidth="185.0"
-                            style="-fx-control-inner-background: #1a1a1a; -fx-text-fill: #bbb; -fx-font-family: 'Franklin Gothic Book'; -fx-border-color: #313131; -fx-border-width: 2; -fx-background-color: #121212; -fx-faint-focus-color: transparent; -fx-focus-color: #313131; -fx-border-radius: 5;"
+                            style="-fx-control-inner-background: #1a1a1a; -fx-text-fill: white; -fx-font-family: 'Franklin Gothic Book'; -fx-border-color: #313131; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-insets: 0;"
                             wrapText="true" />
                     </VBox>
 
@@ -811,8 +811,13 @@
                     text="Rejestracja" />
 
                 <VBox spacing="5">
-                    <Label style="-fx-text-fill:#aaa;" text="Imię i nazwisko" />
+                    <Label style="-fx-text-fill:#aaa;" text="Imię" />
                     <TextField fx:id="registerName"
+                        style="-fx-background-color:#1a1a1a; -fx-text-fill:white;" />
+                </VBox>
+                <VBox spacing="5">
+                    <Label style="-fx-text-fill:#aaa;" text="Nazwisko" />
+                    <TextField fx:id="registerSurname"
                         style="-fx-background-color:#1a1a1a; -fx-text-fill:white;" />
                 </VBox>
 

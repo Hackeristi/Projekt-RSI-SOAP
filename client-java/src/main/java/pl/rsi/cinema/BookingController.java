@@ -3,10 +3,11 @@ package pl.rsi.cinema;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -18,6 +19,29 @@ import java.util.Set;
 
 public class BookingController {
 
+    // Auth overlay fields
+    @FXML
+    private VBox authOverlay;
+    @FXML
+    private VBox authModal;
+    @FXML
+    private VBox loginForm;
+    @FXML
+    private VBox registerForm;
+    @FXML
+    private TextField loginEmail;
+    @FXML
+    private PasswordField loginPassword;
+    @FXML
+    private TextField registerName;
+    @FXML
+    private TextField registerEmail;
+    @FXML
+    private PasswordField registerPassword;
+    @FXML
+    private PasswordField registerConfirmPassword;
+
+    // Booking fields
     @FXML
     private VBox seatsListContainer;
     @FXML
@@ -27,27 +51,135 @@ public class BookingController {
     @FXML
     private GridPane seatGrid;
     @FXML
-    private ComboBox<String> CBDate;
-
+    private ComboBox<String> MovieDate;
     private Button currentSelectedTimeButton = null;
     private String selectedTime = "";
     private final Set<String> selectedSeatKeys = new HashSet<>();
     private final SeatController seatController = new SeatController();
-
     // KLUCZ: "Data_Godzina" (np. "27.04.2024_14:30"), WARTOŚĆ: Zbiór zajętych
     // miejsc
     private final Map<String, Set<String>> occupancyMap = new HashMap<>();
 
     @FXML
     public void initialize() {
-        seatController.setBookingController(this);
-        seatController.initSeatMap(seatGrid);
+        // Sprawdźmy, która instancja się odpala
+        System.out.println("DEBUG: Init - loginForm: " + (loginForm != null));
 
-        CBDate.getItems().addAll("27.04.2024", "28.04.2024", "29.04.2024");
-        CBDate.getSelectionModel().selectFirst();
+        System.out.println("INIT CALLED");
+        System.out.println("SHOWING OVERLAY TEST");
+        showAuthOverlay();
+        System.out.println("authOverlay = " + authOverlay);
+        System.out.println("loginForm = " + loginForm);
+        loginForm.setVisible(true);
+        loginForm.setManaged(true);
 
-        // Każda zmiana daty odświeża zajętość sali
-        CBDate.valueProperty().addListener((obs, oldVal, newVal) -> refreshOccupancy());
+        registerForm.setVisible(false);
+        registerForm.setManaged(false);
+        // Initialize booking
+        if (seatGrid != null) {
+            seatController.setBookingController(this);
+            seatController.initSeatMap(seatGrid);
+
+            MovieDate.getItems().addAll("27.04.2024", "28.04.2024", "29.04.2024");
+            MovieDate.getSelectionModel().selectFirst();
+
+            // Każda zmiana daty odświeża zajętość sali
+            MovieDate.valueProperty().addListener((obs, oldVal, newVal) -> refreshOccupancy());
+        }
+    }
+
+    private void showAuthOverlay() {
+        authOverlay.setDisable(false);
+        authOverlay.setVisible(true);
+        authOverlay.setManaged(true);
+        authOverlay.setMouseTransparent(false);
+    }
+
+    @FXML
+    public void showRegisterForm() {
+        showAuthOverlay();
+        // Logika właściwa (wykona się tylko na mainInstance)
+        if (loginForm != null) {
+            loginForm.setVisible(false);
+            loginForm.setManaged(false);
+            registerForm.setVisible(true);
+            registerForm.setManaged(true);
+        }
+    }
+
+    @FXML
+    public void showLoginForm() {
+        showAuthOverlay();
+        System.out.println("Przełączam na logowanie...");
+        if (loginForm != null && registerForm != null) {
+            loginForm.setVisible(true);
+            loginForm.setManaged(true);
+            registerForm.setVisible(false);
+            registerForm.setManaged(false);
+        }
+    }
+
+    @FXML
+    public void handleLogin() {
+        String email = loginEmail.getText();
+        String password = loginPassword.getText();
+
+        // Wywołujemy statyczną metodę z klasy pomocniczej
+        String error = LoginController.validateLogin(email, password);
+        if (error != null) {
+            showAlert("Błąd", error);
+            return;
+        }
+
+        if (LoginController.performLogin(email, password)) {
+            hideAuthOverlay(); // TO sprawi, że nakładka zniknie i zobaczysz kino!
+        } else {
+            System.out.println("EMAIL FIELD: " + loginEmail);
+            System.out.println("EMAIL TEXT: " + (loginEmail != null ? loginEmail.getText() : "NULL"));
+            showAlert("Błąd", "Nieprawidłowe dane logowania");
+        }
+        System.out.println("VISIBLE: " + authOverlay.isVisible());
+        System.out.println("MANAGED: " + authOverlay.isManaged());
+        System.out.println("MOUSE: " + authOverlay.isMouseTransparent());
+        System.out.println("authOverlay parent = " + authOverlay.getParent());
+        System.out.println("Kliknięto logowanie!");
+    }
+
+    @FXML
+    public void handleRegister() {
+        String name = registerName.getText();
+        String email = registerEmail.getText();
+        String pass = registerPassword.getText();
+        String confirm = registerConfirmPassword.getText();
+
+        String error = RegisterController.validateRegister(name, email, pass, confirm);
+        if (error != null) {
+            showAlert("Błąd", error);
+            return;
+        }
+
+        if (RegisterController.performRegister(email, pass, name)) {
+            showAlert("Sukces", "Zarejestrowano! Możesz się zalogować.");
+            showLoginForm();
+        }
+    }
+
+    private void hideAuthOverlay() {
+        System.out.println("HIDE INSTANCE = " + System.identityHashCode(this));
+        System.out.println("OVERLAY = " + authOverlay);
+        authOverlay.setVisible(false);
+        authOverlay.setManaged(false);
+        authOverlay.setMouseTransparent(true);
+        authOverlay.setDisable(true);
+    }
+
+    private void showAlert(String title, String message) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                javafx.scene.control.Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     @FXML
@@ -69,7 +201,7 @@ public class BookingController {
     }
 
     private void refreshOccupancy() {
-        String currentDate = CBDate.getValue();
+        String currentDate = MovieDate.getValue();
 
         // 1. Czyścimy siatkę (wszystkie na szaro)
         seatController.resetAllSeatsToFree();
@@ -88,7 +220,7 @@ public class BookingController {
 
     @FXML
     private void handleConfirmReservation(ActionEvent event) {
-        String currentDate = CBDate.getValue();
+        String currentDate = MovieDate.getValue();
         if (selectedSeatKeys.isEmpty() || selectedTime.isEmpty() || currentDate == null)
             return;
 

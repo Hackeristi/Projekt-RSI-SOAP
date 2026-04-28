@@ -121,6 +121,7 @@ public class CinemaServerService {
     // =========================================================
     public MovieDetails getMovieDetails(int movieId) {
         try {
+            // Przygotowanie żądania SOAP
             String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                     "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                     "<soap:Body>" +
@@ -130,61 +131,61 @@ public class CinemaServerService {
                     "</soap:Body>" +
                     "</soap:Envelope>";
 
+            // Wysłanie zapytania i odebranie XML
             String xml = sendSoap("GetMovieDetails", soap);
-            System.out.println("--- RAW XML START ---");
-            System.out.println(xml);
-            System.out.println("--- RAW XML END ---");
+
+            // Parsowanie dokumentu XML
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
             Document doc = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
 
-            // 1. Szukamy wszystkich elementów 'Actor' w całym dokumencie
-            NodeList actorNodes = doc.getElementsByTagNameNS("*", "Actor");
+            // --- SEKCJA: AKTORZY (FORMATOWANIE PIONOWE) ---
             StringBuilder actorsBuilder = new StringBuilder();
+            NodeList actorsContainer = doc.getElementsByTagNameNS("*", "Actors");
 
-            for (int i = 0; i < actorNodes.getLength(); i++) {
-                Element actorElement = (Element) actorNodes.item(i);
+            if (actorsContainer.getLength() > 0) {
+                Element container = (Element) actorsContainer.item(0);
+                // Wyciągamy wszystkie napisy z tagów <string>
+                NodeList stringNodes = container.getElementsByTagNameNS("*", "string");
 
-                // 2. Pobieramy Name i Surmane (z Twoją literówką z C#)
-                String fname = getTextByTagName(actorElement, "Name");
-                String lname = getTextByTagName(actorElement, "Surmane");
-
-                String fullName = (fname + " " + lname).trim();
-                if (!fullName.isEmpty()) {
-                    if (actorsBuilder.length() > 0)
-                        actorsBuilder.append(", ");
-                    actorsBuilder.append(fullName);
+                for (int i = 0; i < stringNodes.getLength(); i++) {
+                    String actorName = stringNodes.item(i).getTextContent();
+                    if (actorName != null && !actorName.trim().isEmpty()) {
+                        // Jeśli to nie pierwszy element, dodaj enter przed kolejnym
+                        if (actorsBuilder.length() > 0) {
+                            actorsBuilder.append("\n");
+                        }
+                        actorsBuilder.append(actorName.trim());
+                    }
                 }
             }
 
             String finalActors = actorsBuilder.toString();
 
-            // Pobieramy resztę danych z głównego kontenera
+            // --- SEKCJA: GŁÓWNE DANE O FILMIE ---
+            // Szukamy kontenera z wynikiem (GetMovieDetailsResult)
             Element res = (Element) doc.getElementsByTagNameNS("*", "GetMovieDetailsResult").item(0);
 
+            if (res == null) {
+                System.err.println("DEBUG: Serwer nie zwrócił danych w GetMovieDetailsResult.");
+                return null;
+            }
+
+            // Zwracamy nowy obiekt ze wszystkimi danymi
             return new MovieDetails(
                     getValue(res, "Title"),
                     getValue(res, "Description"),
                     getValue(res, "Director"),
-                    finalActors, // Tutaj nasza sklejona lista
+                    finalActors,
                     Integer.parseInt(getValue(res, "Duration")),
                     getValue(res, "Premiere"),
                     getValue(res, "Poster"));
 
         } catch (Exception e) {
+            System.err.println("Błąd podczas przetwarzania szczegółów filmu (ID: " + movieId + "):");
             e.printStackTrace();
             return null;
         }
-    }
-
-    // Metoda parsująca surowy XML i zwracająca konkretny element (np.
-    // GetMovieDetailsResult)
-    private String getTextByTagName(Element parent, String tagName) {
-        NodeList nl = parent.getElementsByTagNameNS("*", tagName);
-        if (nl.getLength() > 0) {
-            return nl.item(0).getTextContent();
-        }
-        return "";
     }
     // =========================================================
     // DTOs
@@ -240,4 +241,142 @@ public class CinemaServerService {
         }
     }
 
+    public List<ShowtimeDto> getShowtimes(int movieId, String date) {
+        try {
+
+            String[] parts = date.split("\\.");
+            String formatted = parts[2] + "-" + parts[1] + "-" + parts[0];
+
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                    "<soap:Body>" +
+                    "<GetShowtimes xmlns=\"http://tempuri.org/\">" +
+                    "<movieId>" + movieId + "</movieId>" +
+                    "<date>" + formatted + "</date>" +
+                    "</GetShowtimes>" +
+                    "</soap:Body>" +
+                    "</soap:Envelope>";
+
+            String xml = sendSoap("GetShowtimes", soap);
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+
+            Document doc = factory.newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            NodeList nodes = doc.getElementsByTagNameNS("*", "ShowtimeDto");
+
+            List<ShowtimeDto> list = new ArrayList<>();
+
+            for (int i = 0; i < nodes.getLength(); i++) {
+
+                Element e = (Element) nodes.item(i);
+
+                int id = Integer.parseInt(getValue(e, "FilmShowId"));
+                String dt = getValue(e, "ShowDatetime");
+
+                list.add(new ShowtimeDto(id, dt));
+            }
+
+            return list;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
+
+    public List<SeatDto> getSeats(int filmShowId) {
+
+        try {
+
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                    "<soap:Body>" +
+                    "<GetSeats xmlns=\"http://tempuri.org/\">" +
+                    "<filmshowId>" + filmShowId + "</filmshowId>" +
+                    "</GetSeats>" +
+                    "</soap:Body>" +
+                    "</soap:Envelope>";
+
+            String xml = sendSoap("GetSeats", soap);
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+
+            Document doc = factory.newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            NodeList nodes = doc.getElementsByTagNameNS("*", "SeatDto");
+
+            List<SeatDto> list = new ArrayList<>();
+
+            for (int i = 0; i < nodes.getLength(); i++) {
+
+                Element e = (Element) nodes.item(i);
+
+                int seatId = Integer.parseInt(getValue(e, "SeatId"));
+                int number = Integer.parseInt(getValue(e, "Number"));
+                int row = Integer.parseInt(getValue(e, "RowNum"));
+                boolean taken = Boolean.parseBoolean(getValue(e, "IsTaken"));
+
+                list.add(new SeatDto(seatId, number, row, taken));
+            }
+
+            return list;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
+
+    public static class ShowtimeDto {
+        private final int filmShowId;
+        private final String showDatetime;
+
+        public ShowtimeDto(int filmShowId, String showDatetime) {
+            this.filmShowId = filmShowId;
+            this.showDatetime = showDatetime;
+        }
+
+        public int getFilmShowId() {
+            return filmShowId;
+        }
+
+        public String getShowDatetime() {
+            return showDatetime;
+        }
+    }
+
+    public static class SeatDto {
+        private final int seatId;
+        private final int number;
+        private final int rowNum;
+        private final boolean isTaken;
+
+        public SeatDto(int seatId, int number, int rowNum, boolean isTaken) {
+            this.seatId = seatId;
+            this.number = number;
+            this.rowNum = rowNum;
+            this.isTaken = isTaken;
+        }
+
+        public int getSeatId() {
+            return seatId;
+        }
+
+        public int getNumber() {
+            return number;
+        }
+
+        public int getRowNum() {
+            return rowNum;
+        }
+
+        public boolean isTaken() {
+            return isTaken;
+        }
+    }
 }

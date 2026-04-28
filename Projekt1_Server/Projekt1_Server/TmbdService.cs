@@ -139,4 +139,72 @@ public class TmdbService
             Console.WriteLine($"Błąd podczas pobierania danych z TMDB: {ex.Message}");
         }
     }
+    
+    public async Task GenerateScheduleAsync()
+    {
+        if (await _context.FilmShows.AnyAsync()) return;
+
+        var movies = await _context.Movies.ToListAsync();
+        if (!movies.Any())
+        {
+            Console.WriteLine("Brak filmów w bazie! Najpierw pobierz filmy.");
+            return;
+        }
+
+        var screenIds = new List<int> { 1, 2, 3, 4, 5, 6 };
+        var random = new Random();
+        
+        int currentShowId = 1; 
+        
+        for (int dayOffset = 0; dayOffset < 7; dayOffset++)
+        {
+            DateTime todayStart = DateTime.Today.AddDays(dayOffset).AddHours(10);
+
+            var screenAvailableFrom = screenIds.ToDictionary(s => s, s => todayStart);
+            var movieAvailableFrom = movies.ToDictionary(m => m.MovieId, m => todayStart);
+
+            var showsToSchedule = new List<Movie>();
+            for (int i = 0; i < 3; i++)
+            {
+                showsToSchedule.AddRange(movies);
+            }
+            
+            showsToSchedule = showsToSchedule.OrderBy(x => random.Next()).ToList();
+
+            foreach (var movie in showsToSchedule)
+            {
+                var earliestScreen = screenAvailableFrom.OrderBy(kvp => kvp.Value).First();
+                int selectedScreenId = earliestScreen.Key;
+                DateTime screenFreeTime = earliestScreen.Value;
+
+                DateTime movieFreeTime = movieAvailableFrom[movie.MovieId];
+
+                DateTime startTime = screenFreeTime > movieFreeTime ? screenFreeTime : movieFreeTime;
+
+                int minutesRemainder = startTime.Minute % 5;
+                if (minutesRemainder != 0)
+                {
+                    startTime = startTime.AddMinutes(5 - minutesRemainder);
+                }
+                
+                var newShow = new FilmShow
+                {
+                    FilmShowId = currentShowId++,
+                    MovieId = movie.MovieId,
+                    ScreenId = selectedScreenId, 
+                    ShowDatetime = startTime
+                };
+                _context.FilmShows.Add(newShow);
+                
+                DateTime endTime = startTime.AddMinutes(movie.Duration);
+                DateTime cleaningEndTime = endTime.AddMinutes(30); 
+
+                screenAvailableFrom[selectedScreenId] = cleaningEndTime; 
+                movieAvailableFrom[movie.MovieId] = endTime; 
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        Console.WriteLine("Pomyślnie wygenerowano harmonogram seansów na 7 dni!");
+    }
 }

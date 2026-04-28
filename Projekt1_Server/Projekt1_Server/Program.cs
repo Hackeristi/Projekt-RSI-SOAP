@@ -31,6 +31,7 @@ using (var scope = app.Services.CreateScope())
     
     var tmdb = new TmdbService(context, new HttpClient());
     await tmdb.SeedDatabaseAsync();
+    await tmdb.GenerateScheduleAsync();
 }
 
 app.Run();

@@ -1,5 +1,7 @@
 package pl.rsi.cinema;
 
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
@@ -7,15 +9,26 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-
+import pl.rsi.cinema.CinemaServerService.MovieDetails;
+import pl.rsi.cinema.dto.MovieFromServer;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.io.ByteArrayInputStream;
+import java.time.LocalDate;
 
 public class BookingController {
 
@@ -40,8 +53,14 @@ public class BookingController {
     private PasswordField registerPassword;
     @FXML
     private PasswordField registerConfirmPassword;
-
+    @FXML
+    private TableColumn<MovieFromServer, String> titleCol;
+    @FXML
+    private TableColumn<MovieFromServer, String> genreCol;
+    @FXML
+    private TableColumn<MovieFromServer, String> dateCol;
     // Booking fields
+
     @FXML
     private VBox seatsListContainer;
     @FXML
@@ -52,13 +71,38 @@ public class BookingController {
     private GridPane seatGrid;
     @FXML
     private ComboBox<String> MovieDate;
+
+    @FXML
+    private Label titleLabel;
+
+    @FXML
+    private Label durationLabel;
+
+    @FXML
+    private Label genreLabel;
+
+    @FXML
+    private Label yearLabel;
+
+    @FXML
+    private Label directorLabel;
+
+    @FXML
+    private TextArea actorsArea;
+
+    @FXML
+    private TextArea descriptionArea;
+
+    @FXML
+    private ImageView coverImage;
     private Button currentSelectedTimeButton = null;
     private String selectedTime = "";
     private final Set<String> selectedSeatKeys = new HashSet<>();
     private final SeatController seatController = new SeatController();
     private final CinemaServerService serverService = CinemaServerService.getInstance();
-    // KLUCZ: "Data_Godzina" (np. "27.04.2024_14:30"), WARTOŚĆ: Zbiór zajętych
-    // miejsc
+    private List<MovieFromServer> movies;
+    @FXML
+    private TableView<MovieFromServer> moviesTable;
     private final Map<String, Set<String>> occupancyMap = new HashMap<>();
 
     @FXML
@@ -71,22 +115,23 @@ public class BookingController {
         showAuthOverlay();
         System.out.println("authOverlay = " + authOverlay);
         System.out.println("loginForm = " + loginForm);
+        System.out.println("titleLabel = " + titleLabel);
+        System.out.println("seatGrid = " + seatGrid);
         loginForm.setVisible(true);
         loginForm.setManaged(true);
 
         registerForm.setVisible(false);
         registerForm.setManaged(false);
-        // Initialize booking
         if (seatGrid != null) {
             seatController.setBookingController(this);
             seatController.initSeatMap(seatGrid);
 
-            // Pobierz daty dostępnych seansów z serwera
             try {
-                var movies = serverService.getMovies();
+                movies = serverService.getMovies();
+
                 if (movies != null && !movies.isEmpty()) {
-                    // Wyciągnij unikalne daty z filmów
-                    java.util.Set<String> uniqueDates = new java.util.HashSet<>();
+
+                    Set<String> uniqueDates = new HashSet<>();
                     for (var movie : movies) {
                         String dateTime = movie.getShowDateTime();
                         if (dateTime != null && dateTime.length() >= 10) {
@@ -94,24 +139,161 @@ public class BookingController {
                             uniqueDates.add(date);
                         }
                     }
+
                     MovieDate.getItems().addAll(uniqueDates);
+
                 } else {
-                    // Fallback na domyślne daty jeśli serwer niedostępny
                     MovieDate.getItems().addAll("27.04.2024", "28.04.2024", "29.04.2024");
                 }
+
             } catch (Exception e) {
-                System.out.println("Błąd przy pobieraniu filmów z serwera: " + e.getMessage());
-                // Fallback na domyślne daty
+                System.out.println("Błąd: " + e.getMessage());
                 MovieDate.getItems().addAll("27.04.2024", "28.04.2024", "29.04.2024");
             }
 
-            if (MovieDate.getItems().size() > 0) {
+            if (!MovieDate.getItems().isEmpty()) {
                 MovieDate.getSelectionModel().selectFirst();
             }
 
-            // Każda zmiana daty odświeża zajętość sali
-            MovieDate.valueProperty().addListener((obs, oldVal, newVal) -> refreshOccupancy());
+            // 🔥 DOPIERO TERAZ:
+            setupMovies();
+            loadMovies();
+
+            moviesTable.getSelectionModel().selectedItemProperty().addListener(
+                    (obs, oldMovie, newMovie) -> {
+                        if (newMovie != null) {
+                            showMovieDetails(newMovie);
+                        }
+                    });
+        } else {
+            System.out.println("ERROR: seatGrid is null!");
         }
+        System.out.println("HIDE INSTANCE = " + System.identityHashCode(this));
+    }
+
+    private void showMovieDetails(MovieFromServer movie) {
+
+        if (titleLabel == null) {
+            System.out.println("UI not ready yet");
+            return;
+        }
+        System.out.println("REQUEST MOVIE DETAILS ID = " + movie.getShowId());
+        System.out.println("CLICKED SHOW ID = " + movie.getShowId());
+
+        MovieDetails details = serverService.getMovieDetails(movie.getShowId());
+
+        if (details == null)
+            return;
+
+        titleLabel.setText(movie.getTitle());
+        durationLabel.setText(details.getDuration() + " min");
+        genreLabel.setText(movie.getGenre());
+        yearLabel.setText(details.getPremiere().substring(0, 4));
+        directorLabel.setText(details.getDirector());
+
+        actorsArea.setText(details.getActors());
+        descriptionArea.setText(details.getDescription());
+
+        if (details.getPoster() != null && !details.getPoster().isEmpty()) {
+            byte[] imageBytes = java.util.Base64.getDecoder().decode(details.getPoster());
+            Image image = new Image(new ByteArrayInputStream(imageBytes));
+            coverImage.setImage(image);
+        }
+    }
+
+    private void setupMovies() {
+
+        titleCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getTitle()));
+
+        genreCol.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getGenre()));
+
+        dateCol.setCellValueFactory(data -> new SimpleStringProperty(formatDate(data.getValue().getShowDateTime())));
+    }
+
+    private List<MovieFromServer> filterAndSort(List<MovieFromServer> list) {
+
+        if (list == null || list.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<String> seen = new HashSet<>();
+        List<MovieFromServer> result = new ArrayList<>();
+
+        LocalDate today = LocalDate.now();
+        LocalDate end = today.plusDays(7);
+
+        for (MovieFromServer m : list) {
+
+            LocalDate date = extractDate(m);
+
+            if (date.isBefore(today) || date.isAfter(end)) {
+                continue;
+            }
+
+            String key = m.getTitle() + "_" + date;
+
+            if (seen.add(key)) {
+                result.add(m);
+            }
+        }
+
+        result.sort(Comparator.comparing(this::extractDate));
+        return result;
+    }
+
+    private LocalDate extractDate(MovieFromServer m) {
+        return LocalDate.parse(m.getShowDateTime().split("T")[0]);
+    }
+
+    private String formatDate(String dateTime) {
+        if (dateTime == null)
+            return "";
+
+        String date = dateTime.split("T")[0]; // 2025-04-28
+
+        String[] parts = date.split("-");
+        return parts[2] + "." + parts[1]; // 28.04
+    }
+
+    public void loadMovieDetails(int movieId) {
+        try {
+            CinemaServerService.MovieDetails movie = serverService.getMovieDetails(movieId);
+
+            if (movie == null)
+                return;
+
+            titleLabel.setText(movie.getTitle());
+            durationLabel.setText(movie.getDuration() + " min");
+            directorLabel.setText("Reżyser: " + movie.getDirector());
+
+            // PREMIERE (String → rok)
+            if (movie.getPremiere() != null && movie.getPremiere().length() >= 4) {
+                yearLabel.setText("Rok: " + movie.getPremiere().substring(0, 4));
+            }
+
+            actorsArea.setText(movie.getActors());
+            descriptionArea.setText(movie.getDescription());
+
+            // POSTER (Base64 String → Image)
+            if (movie.getPoster() != null && !movie.getPoster().isEmpty()) {
+
+                byte[] imageBytes = java.util.Base64.getDecoder().decode(movie.getPoster());
+                Image image = new Image(new ByteArrayInputStream(imageBytes));
+
+                coverImage.setImage(image); // ✔ poprawna nazwa
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadMovies() {
+
+        List<MovieFromServer> filtered = filterAndSort(movies);
+
+        moviesTable.setItems(
+                FXCollections.observableArrayList(filtered));
     }
 
     private void showAuthOverlay() {

@@ -23,6 +23,7 @@ public class CinemaService : ICinemaService
 			.Select(show => new MovieDto
 			{
 				ShowId = show.FilmShowId,
+				MovieId = show.MovieId,
 				Title = show.Movie.Title,
 				Genre = show.Movie.Genre,
 				ShowDatetime = show.ShowDatetime

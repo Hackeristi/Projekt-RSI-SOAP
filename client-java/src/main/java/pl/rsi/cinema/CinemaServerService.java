@@ -1,28 +1,22 @@
 package pl.rsi.cinema;
 
-import java.net.URL;
+import pl.rsi.cinema.dto.MovieFromServer;
+
+import java.net.http.*;
+import java.net.URI;
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.io.ByteArrayInputStream;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
-import org.w3c.dom.Element;
 
-/**
- * Service for communicating with the SOAP server via ngrok tunnel
- */
+import org.w3c.dom.*;
+
 public class CinemaServerService {
 
-    private static final String SERVER_URL = "https://nearest-crouch-liver.ngrok-free.dev";
-    private static CinemaServerService instance;
+    private static final String SERVER_URL = "https://nearest-crouch-liver.ngrok-free.dev/CinemaService.asmx";
 
-    private CinemaServerService() {
-    }
+    private static CinemaServerService instance;
 
     public static CinemaServerService getInstance() {
         if (instance == null) {
@@ -31,182 +25,164 @@ public class CinemaServerService {
         return instance;
     }
 
-    /**
-     * Get list of movies from server via SOAP call
-     */
-    public List<MovieFromServer> getMovies() {
-        List<MovieFromServer> movies = new ArrayList<>();
-        try {
-            System.out.println("Fetching movies from: " + SERVER_URL + "/CinemaService.asmx");
+    private final HttpClient httpClient = HttpClient.newHttpClient();
 
-            // SOAP request body
-            String soapBody = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
-                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\" " +
-                    "xmlns:tns=\"http://cinema.example.com/\">" +
+    // ---------------------------
+    // SOAP REQUEST HELPER
+    // ---------------------------
+    private String sendSoap(String action, String body) throws Exception {
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(SERVER_URL))
+                .header("Content-Type", "text/xml; charset=utf-8")
+                .header("SOAPAction", "http://tempuri.org/" + action)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() >= 200 && response.statusCode() < 300) {
+            return response.body();
+        }
+
+        throw new RuntimeException("SOAP error: " + response.statusCode());
+    }
+
+    // ---------------------------
+    // PARSER HELPER
+    // ---------------------------
+    private Element parseRoot(String xml, String tag) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+        return (Element) doc.getElementsByTagNameNS("*", tag).item(0);
+    }
+
+    private String getValue(Element e, String tag) {
+        NodeList list = e.getElementsByTagNameNS("*", tag);
+
+        if (list.getLength() == 0 || list.item(0) == null)
+            return null;
+
+        return list.item(0).getTextContent();
+    }
+
+    // =========================================================
+    // 🎬 MOVIES LIST
+    // =========================================================
+    public List<MovieFromServer> getMovies() {
+
+        try {
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
                     "<soap:Body>" +
-                    "<tns:GetMovies/>" +
+                    "<GetMovies xmlns=\"http://tempuri.org/\" />" +
                     "</soap:Body>" +
                     "</soap:Envelope>";
 
-            // Create HTTP client and request
-            HttpClient httpClient = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new java.net.URI(SERVER_URL + "/CinemaService.asmx"))
-                    .header("Content-Type", "text/xml; charset=utf-8")
-                    .header("SOAPAction", "http://cinema.example.com/GetMovies")
-                    .POST(HttpRequest.BodyPublishers.ofString(soapBody))
-                    .timeout(java.time.Duration.ofSeconds(10))
-                    .build();
+            String xml = sendSoap("GetMovies", soap);
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            System.out.println("Response Status: " + response.statusCode());
+            System.out.println(xml);
 
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                String xmlResponse = response.body();
-                System.out.println(
-                        "Response XML:\n" + xmlResponse.substring(0, Math.min(500, xmlResponse.length())) + "...");
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
 
-                // Parse XML response
-                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-                DocumentBuilder builder = factory.newDocumentBuilder();
-                Document doc = builder.parse(new ByteArrayInputStream(xmlResponse.getBytes()));
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
 
-                // Extract movie data from response
-                NodeList movieNodes = doc.getElementsByTagName("MovieDto");
-                System.out.println("Found " + movieNodes.getLength() + " movies");
+            NodeList moviesNodes = doc.getElementsByTagName("d4p1:MovieDto");
+            List<MovieFromServer> list = new ArrayList<>();
 
-                for (int i = 0; i < movieNodes.getLength(); i++) {
-                    Element movieElement = (Element) movieNodes.item(i);
+            for (int i = 0; i < moviesNodes.getLength(); i++) {
 
-                    int showId = Integer.parseInt(
-                            movieElement.getElementsByTagName("ShowId").item(0).getTextContent());
-                    String title = movieElement.getElementsByTagName("Title").item(0).getTextContent();
-                    String genre = movieElement.getElementsByTagName("Genre").item(0).getTextContent();
-                    String showDateTime = movieElement.getElementsByTagName("ShowDatetime").item(0).getTextContent();
+                Element e = (Element) moviesNodes.item(i);
 
-                    movies.add(new MovieFromServer(showId, title, genre, showDateTime));
-                    System.out.println("Loaded: " + title + " @ " + showDateTime);
-                }
-            } else {
-                System.out.println("Server returned status: " + response.statusCode());
-                System.out.println("Response: " + response.body());
-                // Fallback to default data
-                movies.add(new MovieFromServer(1, "Diuna", "Sci-Fi", "2025-04-27T14:30:00"));
-                movies.add(new MovieFromServer(2, "Avatar 3", "Sci-Fi", "2025-04-27T17:00:00"));
-                movies.add(new MovieFromServer(3, "Oppenheimer", "Drama", "2025-04-27T19:30:00"));
+                String showIdStr = getValue(e, "ShowId");
+
+                if (showIdStr == null)
+                    continue;
+
+                int movieId = Integer.parseInt(getValue(e, "MovieId"));
+                int showId = Integer.parseInt(getValue(e, "ShowId"));
+
+                String title = getValue(e, "Title");
+                String genre = getValue(e, "Genre");
+                String date = getValue(e, "ShowDatetime");
+
+                // MovieId NIE MA w tym endpointcie
+                list.add(new MovieFromServer(showId, movieId, title, genre, date));
             }
 
-            return movies;
-        } catch (Exception e) {
-            System.out.println("Error fetching movies: " + e.getMessage());
-            e.printStackTrace();
+            return list;
 
-            // Fallback to default data
-            List<MovieFromServer> defaultMovies = new ArrayList<>();
-            defaultMovies.add(new MovieFromServer(1, "Diuna", "Sci-Fi", "2025-04-27T14:30:00"));
-            defaultMovies.add(new MovieFromServer(2, "Avatar 3", "Sci-Fi", "2025-04-27T17:00:00"));
-            defaultMovies.add(new MovieFromServer(3, "Oppenheimer", "Drama", "2025-04-27T19:30:00"));
-            return defaultMovies;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("getMovies failed: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Get movie details from server
-     */
+    // =========================================================
+    // 🎬 MOVIE DETAILS (NAJWAŻNIEJSZE)
+    // =========================================================
     public MovieDetails getMovieDetails(int movieId) {
+
         try {
-            // Mock data for testing
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                    "<soap:Body>" +
+                    "<GetMovieDetails xmlns=\"http://tempuri.org/\">" +
+                    "<movieId>" + movieId + "</movieId>" +
+                    "</GetMovieDetails>" +
+                    "</soap:Body>" +
+                    "</soap:Envelope>";
+
+            String xml = sendSoap("GetMovieDetails", soap);
+
+            Element root = parseRoot(xml, "MovieDetails");
+
+            int duration = Integer.parseInt(getValue(root, "Duration"));
+
+            String posterBase64 = getValue(root, "Poster");
+
             return new MovieDetails(
-                    "Diuna",
-                    "Dynamiczna adaptacja wszechczasowego klasyka SF",
-                    "Denis Villeneuve",
-                    "Timothée Chalamet, Zendaya, Oscar Isaac",
-                    151,
-                    "2021-09-15",
-                    "https://...");
+                    getValue(root, "Title"),
+                    getValue(root, "Description"),
+                    getValue(root, "Director"),
+                    getValue(root, "Actors"),
+                    duration,
+                    getValue(root, "Premiere"),
+                    posterBase64);
+
         } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+            throw new RuntimeException("getMovieDetails failed", e);
         }
     }
 
-    /**
-     * Create reservation on server
-     */
-    public boolean createReservation(String userEmail, int showId, List<String> selectedSeats) {
-        try {
-            // Mock reservation creation
-            System.out.println("Creating reservation for: " + userEmail);
-            System.out.println("Show ID: " + showId);
-            System.out.println("Seats: " + selectedSeats);
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * Check server connection
-     */
-    public boolean isServerAvailable() {
-        try {
-            URL url = new URL(SERVER_URL);
-            return url.getHost() != null;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    // Inner classes for data transfer
-    public static class MovieFromServer {
-        public int showId;
-        public String title;
-        public String genre;
-        public String showDateTime;
-
-        public MovieFromServer(int showId, String title, String genre, String showDateTime) {
-            this.showId = showId;
-            this.title = title;
-            this.genre = genre;
-            this.showDateTime = showDateTime;
-        }
-
-        public int getShowId() {
-            return showId;
-        }
-
-        public String getTitle() {
-            return title;
-        }
-
-        public String getGenre() {
-            return genre;
-        }
-
-        public String getShowDateTime() {
-            return showDateTime;
-        }
-    }
+    // =========================================================
+    // DTOs
+    // =========================================================
 
     public static class MovieDetails {
-        public String title;
-        public String description;
-        public String director;
-        public String actors;
-        public int duration;
-        public String premiere;
-        public String poster;
+        private final String title;
+        private final String description;
+        private final String director;
+        private final String actors;
+        private final int duration;
+        private final String premiere;
+        private final String posterBase64;
 
-        public MovieDetails(String title, String description, String director, String actors, int duration,
-                String premiere, String poster) {
+        public MovieDetails(String title, String description, String director,
+                String actors, int duration,
+                String premiere, String posterBase64) {
             this.title = title;
             this.description = description;
             this.director = director;
             this.actors = actors;
             this.duration = duration;
             this.premiere = premiere;
-            this.poster = poster;
+            this.posterBase64 = posterBase64;
         }
 
         public String getTitle() {
@@ -234,7 +210,7 @@ public class CinemaServerService {
         }
 
         public String getPoster() {
-            return poster;
+            return posterBase64;
         }
     }
 }

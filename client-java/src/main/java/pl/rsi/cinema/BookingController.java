@@ -56,6 +56,7 @@ public class BookingController {
     private String selectedTime = "";
     private final Set<String> selectedSeatKeys = new HashSet<>();
     private final SeatController seatController = new SeatController();
+    private final CinemaServerService serverService = CinemaServerService.getInstance();
     // KLUCZ: "Data_Godzina" (np. "27.04.2024_14:30"), WARTOŚĆ: Zbiór zajętych
     // miejsc
     private final Map<String, Set<String>> occupancyMap = new HashMap<>();
@@ -80,8 +81,33 @@ public class BookingController {
             seatController.setBookingController(this);
             seatController.initSeatMap(seatGrid);
 
-            MovieDate.getItems().addAll("27.04.2024", "28.04.2024", "29.04.2024");
-            MovieDate.getSelectionModel().selectFirst();
+            // Pobierz daty dostępnych seansów z serwera
+            try {
+                var movies = serverService.getMovies();
+                if (movies != null && !movies.isEmpty()) {
+                    // Wyciągnij unikalne daty z filmów
+                    java.util.Set<String> uniqueDates = new java.util.HashSet<>();
+                    for (var movie : movies) {
+                        String dateTime = movie.getShowDateTime();
+                        if (dateTime != null && dateTime.length() >= 10) {
+                            String date = dateTime.substring(0, 10).replace("-", ".");
+                            uniqueDates.add(date);
+                        }
+                    }
+                    MovieDate.getItems().addAll(uniqueDates);
+                } else {
+                    // Fallback na domyślne daty jeśli serwer niedostępny
+                    MovieDate.getItems().addAll("27.04.2024", "28.04.2024", "29.04.2024");
+                }
+            } catch (Exception e) {
+                System.out.println("Błąd przy pobieraniu filmów z serwera: " + e.getMessage());
+                // Fallback na domyślne daty
+                MovieDate.getItems().addAll("27.04.2024", "28.04.2024", "29.04.2024");
+            }
+
+            if (MovieDate.getItems().size() > 0) {
+                MovieDate.getSelectionModel().selectFirst();
+            }
 
             // Każda zmiana daty odświeża zajętość sali
             MovieDate.valueProperty().addListener((obs, oldVal, newVal) -> refreshOccupancy());

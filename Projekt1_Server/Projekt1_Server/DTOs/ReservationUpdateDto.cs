@@ -1,0 +1,8 @@
+﻿namespace Projekt1_Server.Models;
+
+public class ReservationUpdateDto
+{
+    public int ReservationId { get; set; }
+    public int NewFilmShowId { get; set; }
+    public List<int> NewSeats { get; set; }
+}

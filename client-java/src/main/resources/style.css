@@ -1,0 +1,15 @@
+.time-btn {
+    -fx-background-color: #2a2a2a;
+    -fx-text-fill: #aaa;
+    -fx-background-radius: 8;
+}
+
+.time-btn:hover {
+    -fx-background-color: #3a3a3a;
+}
+
+.time-btn-active {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-background-radius: 8;
+}

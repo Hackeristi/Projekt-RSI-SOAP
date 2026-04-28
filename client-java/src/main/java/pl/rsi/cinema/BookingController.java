@@ -10,7 +10,6 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 
 import java.util.HashMap;
@@ -53,7 +52,6 @@ public class BookingController {
     private GridPane seatGrid;
     @FXML
     private ComboBox<String> MovieDate;
-    private static BookingController mainInstance;
     private Button currentSelectedTimeButton = null;
     private String selectedTime = "";
     private final Set<String> selectedSeatKeys = new HashSet<>();
@@ -67,19 +65,16 @@ public class BookingController {
         // Sprawdźmy, która instancja się odpala
         System.out.println("DEBUG: Init - loginForm: " + (loginForm != null));
 
-        // Zapisujemy JAKĄKOLWIEK instancję, która ma loginForm
-        if (authOverlay != null) {
-            mainInstance = this;
-            System.out.println("DEBUG: GŁÓWNA INSTANCJA ZAREJESTROWANA");
-        } else {
-            System.out.println("DEBUG: To nie jest główna instancja, loginForm jest nullem.");
-        }
         System.out.println("INIT CALLED");
         System.out.println("SHOWING OVERLAY TEST");
         showAuthOverlay();
         System.out.println("authOverlay = " + authOverlay);
         System.out.println("loginForm = " + loginForm);
+        loginForm.setVisible(true);
+        loginForm.setManaged(true);
 
+        registerForm.setVisible(false);
+        registerForm.setManaged(false);
         // Initialize booking
         if (seatGrid != null) {
             seatController.setBookingController(this);
@@ -93,33 +88,22 @@ public class BookingController {
         }
     }
 
-private void showAuthOverlay() {
-    authOverlay.setVisible(true);
-    authOverlay.setManaged(true);
-    authOverlay.setMouseTransparent(false);
-    authOverlay.setOpacity(1);
-    authOverlay.toFront();
+    private void showAuthOverlay() {
+        authOverlay.setDisable(false);
+        authOverlay.setVisible(true);
+        authOverlay.setManaged(true);
+        authOverlay.setMouseTransparent(false);
+    }
 
     @FXML
     public void showRegisterForm() {
         showAuthOverlay();
-        // Jeśli ta metoda odpaliła się w instancji LoginWindow (gdzie loginForm to
-        // null)
-        // to przekazujemy pałeczkę do głównej instancji
-        if (this != mainInstance && mainInstance != null) {
-            mainInstance.showRegisterForm();
-            return;
-        }
-
         // Logika właściwa (wykona się tylko na mainInstance)
         if (loginForm != null) {
             loginForm.setVisible(false);
             loginForm.setManaged(false);
             registerForm.setVisible(true);
             registerForm.setManaged(true);
-            authOverlay.setOpacity(1);
-
-            authOverlay.toFront();
         }
     }
 
@@ -127,11 +111,6 @@ private void showAuthOverlay() {
     public void showLoginForm() {
         showAuthOverlay();
         System.out.println("Przełączam na logowanie...");
-        if (this != mainInstance && mainInstance != null) {
-            mainInstance.showLoginForm();
-            return;
-        }
-
         if (loginForm != null && registerForm != null) {
             loginForm.setVisible(true);
             loginForm.setManaged(true);
@@ -163,7 +142,6 @@ private void showAuthOverlay() {
         System.out.println("MANAGED: " + authOverlay.isManaged());
         System.out.println("MOUSE: " + authOverlay.isMouseTransparent());
         System.out.println("authOverlay parent = " + authOverlay.getParent());
-
         System.out.println("Kliknięto logowanie!");
     }
 
@@ -192,7 +170,7 @@ private void showAuthOverlay() {
         authOverlay.setVisible(false);
         authOverlay.setManaged(false);
         authOverlay.setMouseTransparent(true);
-        authOverlay.setOpacity(1);
+        authOverlay.setDisable(true);
     }
 
     private void showAlert(String title, String message) {

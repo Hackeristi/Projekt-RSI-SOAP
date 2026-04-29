@@ -105,6 +105,7 @@ public class BookingController {
     @FXML
     private TableView<MovieFromServer> moviesTable;
     private final Map<String, Set<String>> occupancyMap = new HashMap<>();
+    private int currentFilmShowId = -1;
 
     @FXML
     public void initialize() {
@@ -136,12 +137,12 @@ public class BookingController {
                     for (var movie : movies) {
                         String dateTime = movie.getShowDateTime();
                         if (dateTime != null && dateTime.length() >= 10) {
-                            String date = dateTime.substring(0, 10).replace("-", ".");
+                            String date = dateTime.substring(0, 10);
                             uniqueDates.add(date);
                         }
                     }
 
-                    MovieDate.getItems().addAll(uniqueDates);
+                    MovieDate.getItems().addAll(uniqueDates.stream().sorted().toList());
 
                 } else {
                     MovieDate.getItems().addAll("27.04.2024", "28.04.2024", "29.04.2024");
@@ -162,8 +163,30 @@ public class BookingController {
 
             moviesTable.getSelectionModel().selectedItemProperty().addListener(
                     (obs, oldMovie, newMovie) -> {
+
                         if (newMovie != null) {
+
                             showMovieDetails(newMovie);
+
+                            String movieDate = extractDateString(newMovie.getShowDateTime());
+                            boolean dateChanged = false;
+
+                            if (MovieDate.getItems().contains(movieDate) && !movieDate.equals(MovieDate.getValue())) {
+                                MovieDate.getSelectionModel().select(movieDate);
+                                dateChanged = true;
+                            }
+
+                            if (!dateChanged) {
+                                updateAvailableTimes(newMovie);
+                            }
+                        }
+                    });
+
+            MovieDate.getSelectionModel().selectedItemProperty().addListener(
+                    (obs, oldDate, newDate) -> {
+                        MovieFromServer selectedMovie = moviesTable.getSelectionModel().getSelectedItem();
+                        if (selectedMovie != null && newDate != null) {
+                            updateAvailableTimes(selectedMovie);
                         }
                     });
         } else {
@@ -183,7 +206,7 @@ public class BookingController {
                 descriptionArea.setText(details.getDescription());
                 durationLabel.setText(details.getDuration() + " min");
                 yearLabel.setText(String.valueOf(details.getPremiere()));
-                actorsArea.setText("AKTORZY: " + details.getActors());
+                actorsArea.setText(details.getActors());
                 System.out.println("DEBUG: Pobrani aktorzy: [" + details.getActors() + "]"); // Sprawdź, czy tu nie ma
                                                                                              // pustych
                 // nawiasów
@@ -197,29 +220,38 @@ public class BookingController {
         }
     }
 
-    private void updateAvailableTimes(String movieTitle) {
-        timeButtonsContainer.getChildren().clear(); // Czyścimy stare przyciski godzin
+    private void updateAvailableTimes(MovieFromServer movie) {
 
-        String selectedDate = MovieDate.getValue(); // np. "28.04.2025"
-        if (selectedDate == null)
+        System.out.println("=== UPDATE TIMES ===");
+
+        timeButtonsContainer.getChildren().clear();
+
+        String date = MovieDate.getValue();
+        System.out.println("<date>" + date + "</date>");
+
+        if (date == null)
             return;
 
-        // Szukamy w liście 'movies' wszystkich seansów tego filmu w tym dniu
-        for (MovieFromServer m : movies) {
-            String movieDate = formatDate(m.getShowDateTime()); // "28.04"
+        List<CinemaServerService.ShowtimeDto> showtimes = serverService.getShowtimes(movie.getMovieId(), date);
 
-            // Sprawdzamy czy tytuł się zgadza i czy data (po sformatowaniu) pasuje
-            if (m.getTitle().equals(movieTitle) && selectedDate.contains(movieDate)) {
-                // Wyciągamy godzinę z formatu ISO "2025-04-28T18:30:00"
-                String time = m.getShowDateTime().split("T")[1].substring(0, 5);
+        System.out.println("SHOWTIMES = " + (showtimes == null ? "null" : showtimes.size()));
 
-                Button timeBtn = new Button(time);
-                timeBtn.getStyleClass().add("time-button"); // Użyj styli CSS lub setStyle
-                resetButtonToDefault(timeBtn);
-                timeBtn.setOnAction(this::handleTimeSelection);
+        if (showtimes == null || showtimes.isEmpty()) {
+            System.out.println("NO SHOWTIMES FROM SERVER");
+            return;
+        }
 
-                timeButtonsContainer.getChildren().add(timeBtn);
-            }
+        for (CinemaServerService.ShowtimeDto s : showtimes) {
+
+            System.out.println("ADDING BTN: " + s.getShowDatetime());
+
+            Button btn = new Button(
+                    s.getShowDatetime().split("T")[1].substring(0, 5));
+
+            btn.setUserData(s);
+            btn.setOnAction(this::handleTimeSelection);
+
+            timeButtonsContainer.getChildren().add(btn);
         }
     }
 
@@ -264,14 +296,22 @@ public class BookingController {
     }
 
     private LocalDate extractDate(MovieFromServer m) {
-        return LocalDate.parse(m.getShowDateTime().split("T")[0]);
+        return LocalDate.parse(extractDateString(m.getShowDateTime()));
+    }
+
+    private String extractDateString(String dateTime) {
+        if (dateTime == null || dateTime.length() < 10) {
+            return "";
+        }
+
+        return dateTime.substring(0, 10);
     }
 
     private String formatDate(String dateTime) {
         if (dateTime == null)
             return "";
 
-        String date = dateTime.split("T")[0]; // 2025-04-28
+        String date = extractDateString(dateTime); // 2025-04-28
 
         String[] parts = date.split("-");
         return parts[2] + "." + parts[1]; // 28.04
@@ -414,38 +454,47 @@ public class BookingController {
 
     @FXML
     private void handleTimeSelection(ActionEvent event) {
-        if (currentSelectedTimeButton != null) {
-            resetButtonToDefault(currentSelectedTimeButton);
+
+        Button btn = (Button) event.getSource();
+        Object data = btn.getUserData();
+
+        if (!(data instanceof CinemaServerService.ShowtimeDto showtime)) {
+            System.out.println("ERROR: brak ShowtimeDto w buttonie");
+            return;
         }
 
-        Button clickedBtn = (Button) event.getSource();
-        clickedBtn.setStyle(
-                "-fx-background-color: #0078D7; -fx-border-color: #005a9e; -fx-border-radius: 5; -fx-text-fill: white; -fx-font-weight: bold;");
+        selectedTime = btn.getText();
+        currentFilmShowId = showtime.getFilmShowId();
 
-        this.currentSelectedTimeButton = clickedBtn;
-        this.selectedTime = clickedBtn.getText();
-
-        // KLUCZOWE: Po kliknięciu godziny sprawdzamy, jakie miejsca są zajęte w tym
-        // konkretnym czasie
         refreshOccupancy();
     }
 
     private void refreshOccupancy() {
-        String currentDate = MovieDate.getValue();
 
-        // 1. Czyścimy siatkę (wszystkie na szaro)
         seatController.resetAllSeatsToFree();
-
-        // 2. Czyścimy aktualny wybór (prawą listę)
         seatsListContainer.getChildren().clear();
         selectedSeatKeys.clear();
 
-        // 3. Jeśli wybrano i datę, i godzinę, ładujemy zajęte miejsca
-        if (currentDate != null && !selectedTime.isEmpty()) {
-            String key = currentDate + "_" + selectedTime;
-            Set<String> occupied = occupancyMap.getOrDefault(key, new HashSet<>());
-            seatController.markOccupiedOnGrid(occupied);
+        if (currentFilmShowId == -1)
+            return;
+
+        List<CinemaServerService.SeatDto> seats = serverService.getSeats(currentFilmShowId);
+
+        if (seats == null)
+            return;
+
+        Set<String> occupied = new HashSet<>();
+
+        for (CinemaServerService.SeatDto s : seats) {
+
+            String key = s.getRowNum() + "," + s.getNumber();
+
+            if (s.isTaken()) {
+                occupied.add(key);
+            }
         }
+
+        seatController.markOccupiedOnGrid(occupied);
     }
 
     @FXML

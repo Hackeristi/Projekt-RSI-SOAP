@@ -169,7 +169,7 @@
                             </font>
                         </Label>
                         <TextArea fx:id="actorsArea" editable="false" prefHeight="291.0" prefWidth="185.0"
-                            style="-fx-control-inner-background: #1a1a1a; -fx-text-fill: white; -fx-font-family: 'Franklin Gothic Book'; -fx-border-color: #313131; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-insets: 0;"
+                            style="-fx-control-inner-background: #1a1a1a; -fx-text-fill: #bbb; -fx-font-family: 'Franklin Gothic Book'; -fx-font: normal 15px; -fx-border-color: #313131; -fx-border-width: 2; -fx-background-color: #121212; -fx-faint-focus-color: transparent; -fx-focus-color: #313131; -fx-border-radius: 5;"
                             wrapText="true" />
                     </VBox>
 
@@ -180,7 +180,7 @@
                             </font>
                         </Label>
                         <TextArea fx:id="descriptionArea" editable="false" prefHeight="205.0" prefWidth="506.0"
-                            style="-fx-control-inner-background: #1a1a1a; -fx-text-fill: #bbb; -fx-font-family: 'Franklin Gothic Book'; -fx-border-color: #313131; -fx-border-width: 2; -fx-background-color: #121212; -fx-faint-focus-color: transparent; -fx-focus-color: #313131; -fx-border-radius: 5;"
+                            style="-fx-control-inner-background: #1a1a1a; -fx-text-fill: #bbb; -fx-font-family: 'Franklin Gothic Book'; -fx-font: normal 15 px; -fx-border-color: #313131; -fx-border-width: 2; -fx-background-color: #121212; -fx-faint-focus-color: transparent; -fx-focus-color: #313131; -fx-border-radius: 5;"
                             wrapText="true" VBox.vgrow="ALWAYS" />
                     </VBox>
                 </HBox>
@@ -199,30 +199,9 @@
                                 promptText="Data"
                                 style="-fx-background-color: #121212;             -fx-border-color: #313131;             -fx-border-radius: 5;             -fx-font-family: 'Franklin Gothic Book';             -fx-font-size: 14;             -fx-text-fill: white;             -fx-prompt-text-fill: white;             -fx-text-base-color: white;">
                             </ComboBox>
-                            <Button fx:id="timeBtn1430" onAction="#handleTimeSelection"
-                                prefHeight="28.0" prefWidth="70.0"
-                                style="-fx-background-color: #121212; -fx-border-color: #313131; -fx-border-radius: 5;"
-                                text="14:30" textFill="WHITE">
-                                <font>
-                                    <Font name="Franklin Gothic Book" size="14.0" />
-                                </font>
-                            </Button>
-                            <Button fx:id="timeBtn1700" onAction="#handleTimeSelection"
-                                prefWidth="70.0"
-                                style="-fx-background-color: #121212; -fx-border-color: #313131; -fx-border-radius: 5;"
-                                text="17:00" textFill="WHITE">
-                                <font>
-                                    <Font name="Franklin Gothic Book" size="14.0" />
-                                </font>
-                            </Button>
-                            <Button fx:id="timeBtn1930" onAction="#handleTimeSelection"
-                                prefWidth="70.0"
-                                style="-fx-background-color: #121212; -fx-border-color: #313131; -fx-border-radius: 5;"
-                                text="19:30" textFill="WHITE">
-                                <font>
-                                    <Font name="Franklin Gothic Book" size="14.0" />
-                                </font>
-                            </Button>
+                            <HBox fx:id="timeButtonsContainer" >
+                                
+                            </HBox>
                         </HBox>
                         <HBox prefHeight="314.0" prefWidth="674.0" spacing="20.0"
                             style="-fx-border-radius: 5; -fx-border-color: #313131; -fx-border-width: 2;">

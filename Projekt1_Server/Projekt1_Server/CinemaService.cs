@@ -58,22 +58,40 @@ public class CinemaService : ICinemaService
 		return movieDetails;
 	}
 
-	public List<ShowtimeDto> GetShowtimes(int movieId, DateOnly date)
-	{
-		DateTime dateOnly = date.ToDateTime(TimeOnly.MinValue);
-		var showtimesList = _context.FilmShows
-			.Where(f=>f.MovieId == movieId)
-			.Where(f=> f.ShowDatetime.Date == dateOnly)
-			.Select(f=> new ShowtimeDto
-			{
-				FilmShowId = f.FilmShowId,
-				ShowDatetime = f.ShowDatetime
-			})
-			.OrderBy(f => f.ShowDatetime)
-			.ToList();
-		
-		return showtimesList;
-	}
+public List<ShowtimeDto> GetShowtimes(int movieId, DateOnly date)
+{
+    try
+    {
+        Console.WriteLine("DEBUG: method entered");
+
+        DateTime dateOnly = date.ToDateTime(TimeOnly.MinValue);
+
+        Console.WriteLine("DEBUG: date parsed: " + dateOnly);
+
+        var showtimesList = _context.FilmShows
+            .Where(f => f.MovieId == movieId)
+            .Where(f => f.ShowDatetime.Year == dateOnly.Year &&
+                        f.ShowDatetime.Month == dateOnly.Month &&
+                        f.ShowDatetime.Day == dateOnly.Day)
+            .Select(f => new ShowtimeDto
+            {
+                FilmShowId = f.FilmShowId,
+                ShowDatetime = f.ShowDatetime
+            })
+            .OrderBy(f => f.ShowDatetime)
+            .ToList();
+
+        Console.WriteLine("DEBUG: query executed");
+
+        return showtimesList;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("ERROR:");
+        Console.WriteLine(ex.ToString());
+        throw; // ważne żebyś zobaczyła stacktrace
+    }
+}
 
 	public List<SeatDto> GetSeats(int filmshowId)
 	{

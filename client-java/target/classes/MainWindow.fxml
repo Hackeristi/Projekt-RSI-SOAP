@@ -174,7 +174,7 @@
                     </VBox>
 
                     <VBox prefHeight="339.0" prefWidth="619.0" spacing="5" HBox.hgrow="ALWAYS">
-                        <Label prefHeight="26.0" prefWidth="34.0" text="Opis" textFill="WHITE">
+                        <Label text="Opis" textFill="WHITE">
                             <font>
                                 <Font name="Franklin Gothic Book" size="18.0" />
                             </font>
@@ -188,13 +188,13 @@
                 <HBox prefHeight="355.0" prefWidth="980.0" spacing="20" VBox.vgrow="ALWAYS">
                     <VBox prefHeight="350.0" prefWidth="674.0" spacing="10.0">
                         <HBox alignment="CENTER_LEFT" spacing="10">
-                            <Label prefHeight="22.0" prefWidth="165.0" text="Plan Widowni: Sala 1"
+                            <Label fx:id="auditoriumLabel" prefHeight="22.0" prefWidth="190.0" text="Plan Widowni: Sala 1"
                                 textFill="WHITE">
                                 <font>
                                     <Font name="Franklin Gothic Book" size="18.0" />
                                 </font>
                             </Label>
-                            <Region prefHeight="28.0" prefWidth="96.0" />
+                            <Region HBox.hgrow="ALWAYS" />
                             <ComboBox fx:id="MovieDate" prefHeight="25.0" prefWidth="154.0"
                                 promptText="Data"
                                 style="-fx-background-color: #121212;             -fx-border-color: #313131;             -fx-border-radius: 5;             -fx-font-family: 'Franklin Gothic Book';             -fx-font-size: 14;             -fx-text-fill: white;             -fx-prompt-text-fill: white;             -fx-text-base-color: white;">

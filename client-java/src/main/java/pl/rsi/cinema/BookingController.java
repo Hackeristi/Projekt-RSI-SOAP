@@ -18,6 +18,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
 import pl.rsi.cinema.CinemaServerService.MovieDetails;
 import pl.rsi.cinema.dto.MovieFromServer;
 import java.util.ArrayList;
@@ -72,6 +73,8 @@ public class BookingController {
     private GridPane seatGrid;
     @FXML
     private ComboBox<String> MovieDate;
+    @FXML
+    private Label auditoriumLabel;
 
     @FXML
     private Label titleLabel;
@@ -106,6 +109,8 @@ public class BookingController {
     private TableView<MovieFromServer> moviesTable;
     private final Map<String, Set<String>> occupancyMap = new HashMap<>();
     private int currentFilmShowId = -1;
+    private static final String TIME_BUTTON_STYLE = "-fx-background-color: #121212; -fx-border-color: #313131; -fx-border-radius: 5;";
+    private static final String SELECTED_TIME_BUTTON_STYLE = "-fx-background-color: #2f80ed; -fx-border-color: #2f80ed; -fx-border-radius: 5;";
 
     @FXML
     public void initialize() {
@@ -224,6 +229,7 @@ public class BookingController {
 
         System.out.println("=== UPDATE TIMES ===");
 
+        timeButtonsContainer.setSpacing(10);
         timeButtonsContainer.getChildren().clear();
 
         String date = MovieDate.getValue();
@@ -248,6 +254,10 @@ public class BookingController {
             Button btn = new Button(
                     s.getShowDatetime().split("T")[1].substring(0, 5));
 
+            btn.setPrefWidth(70.0);
+            btn.setTextFill(javafx.scene.paint.Color.WHITE);
+            btn.setFont(Font.font("Franklin Gothic Book", 14.0));
+            btn.setStyle(TIME_BUTTON_STYLE);
             btn.setUserData(s);
             btn.setOnAction(this::handleTimeSelection);
 
@@ -465,6 +475,13 @@ public class BookingController {
 
         selectedTime = btn.getText();
         currentFilmShowId = showtime.getFilmShowId();
+        if (showtime.getScreenId() > 0) {
+            auditoriumLabel.setText("Plan Widowni: Sala " + showtime.getScreenId());
+        }
+
+        resetButtonToDefault(currentSelectedTimeButton);
+        btn.setStyle(SELECTED_TIME_BUTTON_STYLE);
+        currentSelectedTimeButton = btn;
 
         refreshOccupancy();
     }
@@ -574,7 +591,6 @@ public class BookingController {
 
     private void resetButtonToDefault(Button btn) {
         if (btn != null)
-            btn.setStyle(
-                    "-fx-background-color: #121212; -fx-border-color: #313131; -fx-border-radius: 5; -fx-text-fill: white; -fx-font-weight: normal;");
+            btn.setStyle(TIME_BUTTON_STYLE);
     }
 }

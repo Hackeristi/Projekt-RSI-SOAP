@@ -281,8 +281,12 @@ public class CinemaServerService {
 
                 int id = Integer.parseInt(getValue(e, "FilmShowId"));
                 String dt = getValue(e, "ShowDatetime");
+                String screenIdValue = getValue(e, "ScreenId");
+                int screenId = screenIdValue == null || screenIdValue.isBlank()
+                        ? -1
+                        : Integer.parseInt(screenIdValue);
 
-                list.add(new ShowtimeDto(id, dt));
+                list.add(new ShowtimeDto(id, screenId, dt));
             }
 
             return list;
@@ -359,15 +363,21 @@ public class CinemaServerService {
 
     public static class ShowtimeDto {
         private final int filmShowId;
+        private final int screenId;
         private final String showDatetime;
 
-        public ShowtimeDto(int filmShowId, String showDatetime) {
+        public ShowtimeDto(int filmShowId, int screenId, String showDatetime) {
             this.filmShowId = filmShowId;
+            this.screenId = screenId;
             this.showDatetime = showDatetime;
         }
 
         public int getFilmShowId() {
             return filmShowId;
+        }
+
+        public int getScreenId() {
+            return screenId;
         }
 
         public String getShowDatetime() {

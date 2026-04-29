@@ -46,7 +46,7 @@ public class CinemaServerService {
             return response.body();
         }
 
-        throw new RuntimeException("SOAP error: " + response.statusCode());
+        throw new RuntimeException("SOAP error: " + response.statusCode() + "\n" + response.body());
     }
 
     // ---------------------------
@@ -244,8 +244,7 @@ public class CinemaServerService {
     public List<ShowtimeDto> getShowtimes(int movieId, String date) {
         try {
 
-            String[] parts = date.split("\\.");
-            String formatted = parts[2] + "-" + parts[1] + "-" + parts[0];
+            String formatted = normalizeDateForSoap(date);
 
             String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                     "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
@@ -256,6 +255,13 @@ public class CinemaServerService {
                     "</GetShowtimes>" +
                     "</soap:Body>" +
                     "</soap:Envelope>";
+
+            System.out.println("=== SOAP DEBUG GetShowtimes ===");
+            System.out.println("movieId = " + movieId);
+            System.out.println("raw date = [" + date + "]");
+            System.out.println("formatted date = [" + formatted + "]");
+            System.out.println("is yyyy-MM-dd = " + formatted.matches("\\d{4}-\\d{2}-\\d{2}"));
+            System.out.println(soap);
 
             String xml = sendSoap("GetShowtimes", soap);
 
@@ -285,6 +291,25 @@ public class CinemaServerService {
             e.printStackTrace();
             return new ArrayList<>();
         }
+    }
+
+    private String normalizeDateForSoap(String date) {
+        if (date == null || date.isBlank()) {
+            throw new IllegalArgumentException("Date is empty");
+        }
+
+        String trimmed = date.trim();
+
+        if (trimmed.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return trimmed;
+        }
+
+        String[] parts = trimmed.split("\\.");
+        if (parts.length == 3) {
+            return parts[2] + "-" + parts[1] + "-" + parts[0];
+        }
+
+        throw new IllegalArgumentException("Unsupported date format: " + date);
     }
 
     public List<SeatDto> getSeats(int filmShowId) {

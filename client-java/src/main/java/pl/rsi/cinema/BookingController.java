@@ -142,7 +142,7 @@ public class BookingController {
                         }
                     }
 
-                    MovieDate.getItems().addAll(uniqueDates);
+                    MovieDate.getItems().addAll(uniqueDates.stream().sorted().toList());
 
                 } else {
                     MovieDate.getItems().addAll("27.04.2024", "28.04.2024", "29.04.2024");
@@ -168,16 +168,25 @@ public class BookingController {
 
                             showMovieDetails(newMovie);
 
-                            String movieDate = formatDate(newMovie.getShowDateTime());
+                            String movieDate = extractDateString(newMovie.getShowDateTime());
+                            boolean dateChanged = false;
 
-                            for (String d : MovieDate.getItems()) {
-                                if (d.contains(movieDate)) {
-                                    MovieDate.getSelectionModel().select(d);
-                                    break;
-                                }
+                            if (MovieDate.getItems().contains(movieDate) && !movieDate.equals(MovieDate.getValue())) {
+                                MovieDate.getSelectionModel().select(movieDate);
+                                dateChanged = true;
                             }
 
-                            updateAvailableTimes(newMovie);
+                            if (!dateChanged) {
+                                updateAvailableTimes(newMovie);
+                            }
+                        }
+                    });
+
+            MovieDate.getSelectionModel().selectedItemProperty().addListener(
+                    (obs, oldDate, newDate) -> {
+                        MovieFromServer selectedMovie = moviesTable.getSelectionModel().getSelectedItem();
+                        if (selectedMovie != null && newDate != null) {
+                            updateAvailableTimes(selectedMovie);
                         }
                     });
         } else {
@@ -287,14 +296,22 @@ public class BookingController {
     }
 
     private LocalDate extractDate(MovieFromServer m) {
-        return LocalDate.parse(m.getShowDateTime().split("T")[0]);
+        return LocalDate.parse(extractDateString(m.getShowDateTime()));
+    }
+
+    private String extractDateString(String dateTime) {
+        if (dateTime == null || dateTime.length() < 10) {
+            return "";
+        }
+
+        return dateTime.substring(0, 10);
     }
 
     private String formatDate(String dateTime) {
         if (dateTime == null)
             return "";
 
-        String date = dateTime.split("T")[0]; // 2025-04-28
+        String date = extractDateString(dateTime); // 2025-04-28
 
         String[] parts = date.split("-");
         return parts[2] + "." + parts[1]; // 28.04

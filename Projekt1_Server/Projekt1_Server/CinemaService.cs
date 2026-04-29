@@ -377,7 +377,8 @@ public UserLoginDto Login(string email, string password)
         }
         
         return new UserLoginDto
-        {
+        { 
+	        UserId = user.UsersId,
            Email = user.Email,
            UserName = user.Name,
            ErrorMessage = null 

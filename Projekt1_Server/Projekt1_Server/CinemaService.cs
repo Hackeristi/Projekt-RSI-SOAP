@@ -58,39 +58,22 @@ public class CinemaService : ICinemaService
 		return movieDetails;
 	}
 
-public List<ShowtimeDto> GetShowtimes(int movieId, DateOnly date)
-{
-    try
-    {
-        Console.WriteLine("DEBUG: method entered");
-
-        DateTime dateOnly = date.ToDateTime(TimeOnly.MinValue);
-
-        Console.WriteLine("DEBUG: date parsed: " + dateOnly);
-
-        var showtimesList = _context.FilmShows
-            .Where(f => f.MovieId == movieId)
-            .Where(f => f.ShowDatetime.Year == dateOnly.Year &&
-                        f.ShowDatetime.Month == dateOnly.Month &&
-                        f.ShowDatetime.Day == dateOnly.Day)
-            .Select(f => new ShowtimeDto
-            {
-                FilmShowId = f.FilmShowId,
-                ShowDatetime = f.ShowDatetime
-            })
-            .OrderBy(f => f.ShowDatetime)
-            .ToList();
-
-        Console.WriteLine("DEBUG: query executed");
-
-        return showtimesList;
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("ERROR:");
-        Console.WriteLine(ex.ToString());
-        throw; // ważne żebyś zobaczyła stacktrace
-    }
+	public List<ShowtimeDto> GetShowtimes(int movieId, DateTime date)
+	{
+		var showtimesList = _context.FilmShows
+			.Include(f=>f.Screen)
+			.Where(f=>f.MovieId == movieId)
+			.Where(f=> f.ShowDatetime.Date == date)
+			.Select(f=> new ShowtimeDto
+			{
+				FilmShowId = f.FilmShowId,
+				ScreenId = f.ScreenId,
+				ShowDatetime = f.ShowDatetime
+			})
+			.OrderBy(f => f.ShowDatetime)
+			.ToList();
+		
+		return showtimesList;
 }
 
 	public List<SeatDto> GetSeats(int filmshowId)
@@ -364,17 +347,27 @@ public List<ShowtimeDto> GetShowtimes(int movieId, DateOnly date)
 		
 		bool isPasswordValid = BCrypt.Net.BCrypt.Verify(password, user.Password); 
 
-		if (!isPasswordValid)
-		{
-			throw new Exception("Nieprawidłowy adres email lub hasło.");
-		}
-		
-		return new UserLoginDto
-		{
-			Email = user.Email,
-			UserName = user.Name
-		};
-	}
+        if (!isPasswordValid)
+        {
+           return new UserLoginDto { ErrorMessage = "Nieprawidłowy adres email lub hasło." };
+        }
+        
+        return new UserLoginDto
+        { 
+	        UserId = user.UsersId,
+           Email = user.Email,
+           UserName = user.Name,
+           ErrorMessage = null 
+        };
+    }
+    catch (Exception ex)
+    {
+        return new UserLoginDto
+        {
+            ErrorMessage = "LOGIN ERROR: " + ex.Message
+        };
+    }
+}
 	
 	public byte[] GetMoviePoster(int movieId)
 	{
@@ -389,4 +382,5 @@ public List<ShowtimeDto> GetShowtimes(int movieId, DateOnly date)
 		}
 		return posterBytes;
 	}
+
 }

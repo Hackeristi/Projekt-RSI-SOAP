@@ -14,7 +14,7 @@ public interface ICinemaService
     MovieDetailsDto GetMovieDetails(int movieId);
     
     [OperationContract]
-    List<ShowtimeDto> GetShowtimes(int movieId, DateOnly date);
+    List<ShowtimeDto> GetShowtimes(int movieId, DateTime date);
     
     [OperationContract]
     List<SeatDto> GetSeats(int filmshowId);

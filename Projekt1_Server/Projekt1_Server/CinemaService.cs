@@ -58,12 +58,11 @@ public class CinemaService : ICinemaService
 		return movieDetails;
 	}
 
-	public List<ShowtimeDto> GetShowtimes(int movieId, DateOnly date)
+	public List<ShowtimeDto> GetShowtimes(int movieId, DateTime date)
 	{
-		DateTime dateOnly = date.ToDateTime(TimeOnly.MinValue);
 		var showtimesList = _context.FilmShows
 			.Where(f=>f.MovieId == movieId)
-			.Where(f=> f.ShowDatetime.Date == dateOnly)
+			.Where(f=> f.ShowDatetime.Date == date)
 			.Select(f=> new ShowtimeDto
 			{
 				FilmShowId = f.FilmShowId,

@@ -188,19 +188,18 @@
                 <HBox prefHeight="355.0" prefWidth="980.0" spacing="20" VBox.vgrow="ALWAYS">
                     <VBox prefHeight="350.0" prefWidth="674.0" spacing="10.0">
                         <HBox alignment="CENTER_LEFT" spacing="10">
-                            <Label prefHeight="22.0" prefWidth="165.0" text="Plan Widowni: Sala 1"
+                            <Label fx:id="screenLabel" prefHeight="22.0" prefWidth="165.0" text="Plan Widowni: Sala ?"
                                 textFill="WHITE">
                                 <font>
                                     <Font name="Franklin Gothic Book" size="18.0" />
                                 </font>
                             </Label>
-                            <Region prefHeight="28.0" prefWidth="96.0" />
+                            <Region HBox.hgrow="ALWAYS" />
                             <ComboBox fx:id="MovieDate" prefHeight="25.0" prefWidth="154.0"
                                 promptText="Data"
                                 style="-fx-background-color: #121212;             -fx-border-color: #313131;             -fx-border-radius: 5;             -fx-font-family: 'Franklin Gothic Book';             -fx-font-size: 14;             -fx-text-fill: white;             -fx-prompt-text-fill: white;             -fx-text-base-color: white;">
                             </ComboBox>
-                            <HBox fx:id="timeButtonsContainer" >
-                                
+                            <HBox fx:id="timeButtonsContainer" spacing="8">
                             </HBox>
                         </HBox>
                         <HBox prefHeight="314.0" prefWidth="674.0" spacing="20.0"
@@ -733,13 +732,13 @@
                 style="-fx-background-color: #121212; -fx-border-color: #313131;"
                 BorderPane.alignment="CENTER">
                 <items>
-                    <Label text="Połączono z serwerem .NET" textFill="WHITE">
+                    <Label fx:id="serverStatusLabel" text="Sprawdzanie połączenia..." textFill="#aaa">
                         <font>
                             <Font name="Franklin Gothic Book" size="10.0" />
                         </font>
                     </Label>
                     <Separator orientation="VERTICAL" />
-                    <Label text="Stan MTOM: Aktywny" textFill="WHITE">
+                    <Label fx:id="mtomStatusLabel" text="Stan MTOM: Nieznany" textFill="#aaa">
                         <font>
                             <Font name="Franklin Gothic Book" size="10.0" />
                         </font>

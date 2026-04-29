@@ -21,7 +21,6 @@ import javafx.scene.layout.VBox;
 import pl.rsi.cinema.CinemaServerService.MovieDetails;
 import pl.rsi.cinema.dto.MovieFromServer;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -96,6 +95,12 @@ public class BookingController {
 
     @FXML
     private ImageView coverImage;
+    @FXML
+    private Label screenLabel;
+    @FXML
+    private Label serverStatusLabel;
+    @FXML
+    private Label mtomStatusLabel;
     private Button currentSelectedTimeButton = null;
     private String selectedTime = "";
     private final Set<String> selectedSeatKeys = new HashSet<>();
@@ -114,6 +119,19 @@ public class BookingController {
 
         System.out.println("INIT CALLED");
         System.out.println("SHOWING OVERLAY TEST");
+
+        new Thread(() -> {
+            boolean reachable = serverService.isServerReachable();
+            javafx.application.Platform.runLater(() -> {
+                if (serverStatusLabel != null) {
+                    serverStatusLabel.setText(reachable ? "Połączono z serwerem .NET" : "Brak połączenia z serwerem");
+                    serverStatusLabel.setTextFill(reachable
+                            ? javafx.scene.paint.Color.WHITE
+                            : javafx.scene.paint.Color.web("#ff4444"));
+                }
+            });
+        }).start();
+
         showAuthOverlay();
         System.out.println("authOverlay = " + authOverlay);
         System.out.println("loginForm = " + loginForm);
@@ -199,7 +217,6 @@ public class BookingController {
         try {
             MovieDetails details = serverService.getMovieDetails(movie.getMovieId());
 
-            // Wymuszenie aktualizacji w wątku JavaFX
             javafx.application.Platform.runLater(() -> {
                 titleLabel.setText(details.getTitle());
                 directorLabel.setText(details.getDirector());
@@ -207,14 +224,24 @@ public class BookingController {
                 durationLabel.setText(details.getDuration() + " min");
                 yearLabel.setText(String.valueOf(details.getPremiere()));
                 actorsArea.setText(details.getActors());
-                System.out.println("DEBUG: Pobrani aktorzy: [" + details.getActors() + "]"); // Sprawdź, czy tu nie ma
-                                                                                             // pustych
-                // nawiasów
-                if (details.getPoster() != null && !details.getPoster().isEmpty()) {
-                    byte[] imageBytes = Base64.getDecoder().decode(details.getPoster());
-                    coverImage.setImage(new Image(new ByteArrayInputStream(imageBytes)));
-                }
             });
+
+            new Thread(() -> {
+                byte[] posterBytes = serverService.getMoviePoster(movie.getMovieId());
+                boolean mtom = serverService.wasLastPosterMtom();
+                javafx.application.Platform.runLater(() -> {
+                    if (posterBytes != null && posterBytes.length > 0) {
+                        coverImage.setImage(new Image(new ByteArrayInputStream(posterBytes)));
+                    }
+                    if (mtomStatusLabel != null) {
+                        mtomStatusLabel.setText("Stan MTOM: " + (mtom ? "Aktywny" : "Nieaktywny"));
+                        mtomStatusLabel.setTextFill(mtom
+                                ? javafx.scene.paint.Color.web("#4fb3ff")
+                                : javafx.scene.paint.Color.web("#aaa"));
+                    }
+                });
+            }).start();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -224,6 +251,7 @@ public class BookingController {
 
         System.out.println("=== UPDATE TIMES ===");
 
+        currentSelectedTimeButton = null;
         timeButtonsContainer.getChildren().clear();
 
         String date = MovieDate.getValue();
@@ -241,18 +269,24 @@ public class BookingController {
             return;
         }
 
+        Button firstBtn = null;
         for (CinemaServerService.ShowtimeDto s : showtimes) {
 
             System.out.println("ADDING BTN: " + s.getShowDatetime());
 
-            Button btn = new Button(
-                    s.getShowDatetime().split("T")[1].substring(0, 5));
-
+            Button btn = new Button(s.getShowDatetime().split("T")[1].substring(0, 5));
+            btn.setPrefWidth(70);
+            btn.setStyle("-fx-background-color: #121212; -fx-border-color: #313131; -fx-border-radius: 5;");
+            btn.setTextFill(javafx.scene.paint.Color.WHITE);
+            btn.setFont(javafx.scene.text.Font.font("Franklin Gothic Book", 14));
             btn.setUserData(s);
             btn.setOnAction(this::handleTimeSelection);
 
             timeButtonsContainer.getChildren().add(btn);
+            if (firstBtn == null) firstBtn = btn;
         }
+
+        if (firstBtn != null) firstBtn.fire();
     }
 
     private void setupMovies() {
@@ -336,13 +370,10 @@ public class BookingController {
             actorsArea.setText(movie.getActors());
             descriptionArea.setText(movie.getDescription());
 
-            // POSTER (Base64 String → Image)
-            if (movie.getPoster() != null && !movie.getPoster().isEmpty()) {
-
-                byte[] imageBytes = java.util.Base64.getDecoder().decode(movie.getPoster());
-                Image image = new Image(new ByteArrayInputStream(imageBytes));
-
-                coverImage.setImage(image); // ✔ poprawna nazwa
+            // Poster via MTOM
+            byte[] posterBytes = serverService.getMoviePoster(movieId);
+            if (posterBytes != null && posterBytes.length > 0) {
+                coverImage.setImage(new Image(new ByteArrayInputStream(posterBytes)));
             }
 
         } catch (Exception e) {
@@ -463,8 +494,19 @@ public class BookingController {
             return;
         }
 
+        if (currentSelectedTimeButton != null) {
+            resetButtonToDefault(currentSelectedTimeButton);
+        }
+        btn.setStyle("-fx-background-color: #0078D7; -fx-border-color: #0078D7; -fx-border-radius: 5;");
+        currentSelectedTimeButton = btn;
+
         selectedTime = btn.getText();
         currentFilmShowId = showtime.getFilmShowId();
+
+        if (screenLabel != null) {
+            int sid = showtime.getScreenId();
+            screenLabel.setText("Plan Widowni: Sala " + (sid > 0 ? sid : "?"));
+        }
 
         refreshOccupancy();
     }

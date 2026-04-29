@@ -61,11 +61,13 @@ public class CinemaService : ICinemaService
 	public List<ShowtimeDto> GetShowtimes(int movieId, DateTime date)
 	{
 		var showtimesList = _context.FilmShows
+			.Include(f=>f.Screen)
 			.Where(f=>f.MovieId == movieId)
 			.Where(f=> f.ShowDatetime.Date == date)
 			.Select(f=> new ShowtimeDto
 			{
 				FilmShowId = f.FilmShowId,
+				ScreenId = f.ScreenId,
 				ShowDatetime = f.ShowDatetime
 			})
 			.OrderBy(f => f.ShowDatetime)
@@ -406,4 +408,5 @@ public UserLoginDto Login(string email, string password)
 		}
 		return posterBytes;
 	}
+
 }

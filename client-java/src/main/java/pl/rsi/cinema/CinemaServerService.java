@@ -6,6 +6,8 @@ import java.net.http.*;
 import java.net.URI;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -27,6 +29,11 @@ public class CinemaServerService {
     }
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
+    private boolean lastPosterWasMtom = false;
+
+    public boolean wasLastPosterMtom() {
+        return lastPosterWasMtom;
+    }
 
     // ---------------------------
     // SOAP REQUEST HELPER
@@ -60,6 +67,29 @@ public class CinemaServerService {
             return null;
 
         return list.item(0).getTextContent();
+    }
+
+    // =========================================================
+    // 🔌 SERVER STATUS
+    // =========================================================
+    public boolean isServerReachable() {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(SERVER_URL))
+                    .header("Content-Type", "text/xml; charset=utf-8")
+                    .header("SOAPAction", "http://tempuri.org/GetMovies")
+                    .POST(HttpRequest.BodyPublishers.ofString(
+                            "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                            "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                            "<soap:Body><GetMovies xmlns=\"http://tempuri.org/\" /></soap:Body>" +
+                            "</soap:Envelope>"))
+                    .timeout(java.time.Duration.ofSeconds(5))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() >= 200 && response.statusCode() < 300;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     // =========================================================
@@ -188,6 +218,118 @@ public class CinemaServerService {
         }
     }
     // =========================================================
+    // 🖼 MOVIE POSTER (MTOM)
+    // =========================================================
+    public byte[] getMoviePoster(int movieId) {
+        try {
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                    "<soap:Body>" +
+                    "<GetMoviePoster xmlns=\"http://tempuri.org/\">" +
+                    "<movieId>" + movieId + "</movieId>" +
+                    "</GetMoviePoster>" +
+                    "</soap:Body>" +
+                    "</soap:Envelope>";
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(SERVER_URL))
+                    .header("Content-Type", "text/xml; charset=utf-8")
+                    .header("SOAPAction", "http://tempuri.org/GetMoviePoster")
+                    .POST(HttpRequest.BodyPublishers.ofString(soap))
+                    .build();
+
+            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new RuntimeException("HTTP error: " + response.statusCode());
+            }
+
+            String contentType = response.headers().firstValue("Content-Type").orElse("");
+            System.out.println("=== GetMoviePoster Content-Type: " + contentType);
+
+            if (contentType.contains("multipart/related")) {
+                lastPosterWasMtom = true;
+                return extractMtomBinaryPart(response.body(), contentType);
+            } else {
+                lastPosterWasMtom = false;
+                // Fallback: Base64 in regular XML response
+                String xml = new String(response.body(), "UTF-8");
+                System.out.println("=== GetMoviePoster fallback XML (first 500): " + xml.substring(0, Math.min(500, xml.length())));
+                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                factory.setNamespaceAware(true);
+                Document doc = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+                Element result = (Element) doc.getElementsByTagNameNS("*", "GetMoviePosterResult").item(0);
+                if (result == null) return null;
+                return Base64.getDecoder().decode(result.getTextContent().trim());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private byte[] extractMtomBinaryPart(byte[] body, String contentType) throws Exception {
+        String boundary = null;
+        for (String param : contentType.split(";")) {
+            param = param.trim();
+            if (param.startsWith("boundary=")) {
+                boundary = param.substring(9).replace("\"", "").trim();
+            }
+        }
+        if (boundary == null) throw new RuntimeException("No MIME boundary in Content-Type");
+
+        byte[] delimiter = ("\r\n--" + boundary).getBytes("UTF-8");
+        byte[] firstDelimiter = ("--" + boundary).getBytes("UTF-8");
+
+        List<byte[]> parts = new ArrayList<>();
+        int start = indexOfBytes(body, firstDelimiter, 0);
+        if (start == -1) throw new RuntimeException("MIME boundary not found in response body");
+        start += firstDelimiter.length;
+
+        while (start < body.length) {
+            if (start + 1 < body.length && body[start] == '\r' && body[start + 1] == '\n') start += 2;
+            else if (start < body.length && body[start] == '\n') start += 1;
+
+            int end = indexOfBytes(body, delimiter, start);
+            if (end == -1) break;
+            parts.add(Arrays.copyOfRange(body, start, end));
+            start = end + delimiter.length;
+            if (start + 1 < body.length && body[start] == '-' && body[start + 1] == '-') break;
+        }
+
+        for (byte[] part : parts) {
+            int headerEnd = indexOfCrLfCrLf(part);
+            if (headerEnd == -1) continue;
+            String headers = new String(part, 0, headerEnd, "UTF-8");
+            if (!headers.contains("application/xop+xml") && !headers.contains("text/xml")) {
+                int dataStart = headerEnd + 4;
+                return Arrays.copyOfRange(part, dataStart, part.length);
+            }
+        }
+        throw new RuntimeException("No binary attachment found in MTOM response");
+    }
+
+    private int indexOfBytes(byte[] source, byte[] target, int fromIndex) {
+        outer:
+        for (int i = fromIndex; i <= source.length - target.length; i++) {
+            for (int j = 0; j < target.length; j++) {
+                if (source[i + j] != target[j]) continue outer;
+            }
+            return i;
+        }
+        return -1;
+    }
+
+    private int indexOfCrLfCrLf(byte[] data) {
+        for (int i = 0; i < data.length - 3; i++) {
+            if (data[i] == '\r' && data[i + 1] == '\n' && data[i + 2] == '\r' && data[i + 3] == '\n') {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // =========================================================
     // DTOs
     // =========================================================
 
@@ -264,6 +406,8 @@ public class CinemaServerService {
             System.out.println(soap);
 
             String xml = sendSoap("GetShowtimes", soap);
+            System.out.println("=== SOAP RESPONSE GetShowtimes ===");
+            System.out.println(xml);
 
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
@@ -281,8 +425,10 @@ public class CinemaServerService {
 
                 int id = Integer.parseInt(getValue(e, "FilmShowId"));
                 String dt = getValue(e, "ShowDatetime");
+                String screenIdStr = getValue(e, "ScreenId");
+                int screenId = (screenIdStr != null) ? Integer.parseInt(screenIdStr) : 0;
 
-                list.add(new ShowtimeDto(id, dt));
+                list.add(new ShowtimeDto(id, dt, screenId));
             }
 
             return list;
@@ -360,10 +506,12 @@ public class CinemaServerService {
     public static class ShowtimeDto {
         private final int filmShowId;
         private final String showDatetime;
+        private final int screenId;
 
-        public ShowtimeDto(int filmShowId, String showDatetime) {
+        public ShowtimeDto(int filmShowId, String showDatetime, int screenId) {
             this.filmShowId = filmShowId;
             this.showDatetime = showDatetime;
+            this.screenId = screenId;
         }
 
         public int getFilmShowId() {
@@ -372,6 +520,10 @@ public class CinemaServerService {
 
         public String getShowDatetime() {
             return showDatetime;
+        }
+
+        public int getScreenId() {
+            return screenId;
         }
     }
 

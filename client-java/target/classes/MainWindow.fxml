@@ -708,7 +708,7 @@
                 style="-fx-background-color: #121212; -fx-border-color: #313131;"
                 BorderPane.alignment="CENTER">
                 <items>
-                    <Button contentDisplay="RIGHT" prefHeight="28.0" prefWidth="75.0"
+                    <Button contentDisplay="RIGHT" onAction="#handleLogout" prefHeight="28.0" prefWidth="75.0"
                         style="-fx-background-color: #313131; -fx-border-color: #393939; -fx-border-radius: 5;"
                         text="Wyloguj" textFill="WHITE">
                         <font>

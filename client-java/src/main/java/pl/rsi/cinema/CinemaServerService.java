@@ -458,6 +458,255 @@ public class CinemaServerService {
         throw new IllegalArgumentException("Unsupported date format: " + date);
     }
 
+    // =========================================================
+    // 🔐 AUTH: LOGIN
+    // =========================================================
+    public UserLoginDto login(String email, String password) {
+        try {
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                    "<soap:Body>" +
+                    "<Login xmlns=\"http://tempuri.org/\">" +
+                    "<email>" + escapeXml(email) + "</email>" +
+                    "<password>" + escapeXml(password) + "</password>" +
+                    "</Login>" +
+                    "</soap:Body>" +
+                    "</soap:Envelope>";
+
+            String xml = sendSoap("Login", soap);
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            Document doc = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element result = (Element) doc.getElementsByTagNameNS("*", "LoginResult").item(0);
+            if (result == null) return null;
+
+            String userIdStr = getValue(result, "UserId");
+            int userId = (userIdStr != null && !userIdStr.isBlank()) ? Integer.parseInt(userIdStr) : 0;
+
+            return new UserLoginDto(
+                    userId,
+                    getValue(result, "Email"),
+                    getValue(result, "UserName"),
+                    getValue(result, "ErrorMessage"));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    // =========================================================
+    // 🔐 AUTH: REGISTER
+    // =========================================================
+    public RegisterResultDto register(String name, String surname, String email, String password, String confirmPassword) {
+        try {
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                    "<soap:Body>" +
+                    "<Register xmlns=\"http://tempuri.org/\">" +
+                    "<name>" + escapeXml(name) + "</name>" +
+                    "<surname>" + escapeXml(surname) + "</surname>" +
+                    "<email>" + escapeXml(email) + "</email>" +
+                    "<password>" + escapeXml(password) + "</password>" +
+                    "<confirmPassword>" + escapeXml(confirmPassword) + "</confirmPassword>" +
+                    "</Register>" +
+                    "</soap:Body>" +
+                    "</soap:Envelope>";
+
+            System.out.println("=== REGISTER REQUEST ===");
+            System.out.println(soap);
+
+            String xml = sendSoap("Register", soap);
+
+            System.out.println("=== REGISTER RESPONSE ===");
+            System.out.println(xml);
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            Document doc = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element result = (Element) doc.getElementsByTagNameNS("*", "RegisterResult").item(0);
+            if (result == null) return null;
+
+            String userIdStr = getValue(result, "UserId");
+            int userId = (userIdStr != null && !userIdStr.isBlank()) ? Integer.parseInt(userIdStr) : 0;
+
+            return new RegisterResultDto(
+                    userId,
+                    getValue(result, "Email"),
+                    getValue(result, "Name"),
+                    getValue(result, "Surname"),
+                    getValue(result, "ErrorMessage"));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    // =========================================================
+    // 📋 RESERVATIONS
+    // =========================================================
+    public ReservationCreateResultDto createReservation(int userId, int filmShowId, List<Integer> seatIds) {
+        try {
+            StringBuilder seatsXml = new StringBuilder(
+                    "<seats xmlns:d4p1=\"http://schemas.microsoft.com/2003/10/Serialization/Arrays\">");
+            for (int id : seatIds) {
+                seatsXml.append("<d4p1:int>").append(id).append("</d4p1:int>");
+            }
+            seatsXml.append("</seats>");
+
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                    "<soap:Body>" +
+                    "<CreateReservation xmlns=\"http://tempuri.org/\">" +
+                    "<userId>" + userId + "</userId>" +
+                    "<filmshowId>" + filmShowId + "</filmshowId>" +
+                    seatsXml +
+                    "</CreateReservation>" +
+                    "</soap:Body>" +
+                    "</soap:Envelope>";
+
+            String xml = sendSoap("CreateReservation", soap);
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            Document doc = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element result = (Element) doc.getElementsByTagNameNS("*", "CreateReservationResult").item(0);
+            if (result == null) return null;
+
+            String idStr = getValue(result, "ReservationId");
+            int reservationId = (idStr != null && !idStr.isBlank()) ? Integer.parseInt(idStr) : 0;
+
+            return new ReservationCreateResultDto(reservationId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public boolean deleteReservation(int userId, int reservationId) {
+        try {
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                    "<soap:Body>" +
+                    "<ReservationDelete xmlns=\"http://tempuri.org/\">" +
+                    "<userId>" + userId + "</userId>" +
+                    "<reservationId>" + reservationId + "</reservationId>" +
+                    "</ReservationDelete>" +
+                    "</soap:Body>" +
+                    "</soap:Envelope>";
+
+            String xml = sendSoap("ReservationDelete", soap);
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            Document doc = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element result = (Element) doc.getElementsByTagNameNS("*", "ReservationDeleteResult").item(0);
+            if (result == null) return false;
+
+            return Boolean.parseBoolean(result.getTextContent().trim());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updateReservation(int userId, int reservationId, int newFilmShowId, List<Integer> newSeatIds) {
+        try {
+            StringBuilder seatsXml = new StringBuilder(
+                    "<newseats xmlns:d4p1=\"http://schemas.microsoft.com/2003/10/Serialization/Arrays\">");
+            for (int id : newSeatIds) {
+                seatsXml.append("<d4p1:int>").append(id).append("</d4p1:int>");
+            }
+            seatsXml.append("</newseats>");
+
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+                    "<soap:Body>" +
+                    "<UpdateReservation xmlns=\"http://tempuri.org/\">" +
+                    "<userId>" + userId + "</userId>" +
+                    "<reservationId>" + reservationId + "</reservationId>" +
+                    "<newshowId>" + newFilmShowId + "</newshowId>" +
+                    seatsXml +
+                    "</UpdateReservation>" +
+                    "</soap:Body>" +
+                    "</soap:Envelope>";
+
+            String xml = sendSoap("UpdateReservation", soap);
+            return xml != null;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static class ReservationCreateResultDto {
+        private final int reservationId;
+
+        public ReservationCreateResultDto(int reservationId) {
+            this.reservationId = reservationId;
+        }
+
+        public int getReservationId() { return reservationId; }
+    }
+
+    private String escapeXml(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&apos;");
+    }
+
+    // =========================================================
+    // DTOs: AUTH
+    // =========================================================
+    public static class UserLoginDto {
+        private final int userId;
+        private final String email;
+        private final String userName;
+        private final String errorMessage;
+
+        public UserLoginDto(int userId, String email, String userName, String errorMessage) {
+            this.userId = userId;
+            this.email = email;
+            this.userName = userName;
+            this.errorMessage = errorMessage;
+        }
+
+        public int getUserId() { return userId; }
+        public String getEmail() { return email; }
+        public String getUserName() { return userName; }
+        public String getErrorMessage() { return errorMessage; }
+        public boolean isSuccess() { return errorMessage == null || errorMessage.isBlank(); }
+    }
+
+    public static class RegisterResultDto {
+        private final int userId;
+        private final String email;
+        private final String name;
+        private final String surname;
+        private final String errorMessage;
+
+        public RegisterResultDto(int userId, String email, String name, String surname, String errorMessage) {
+            this.userId = userId;
+            this.email = email;
+            this.name = name;
+            this.surname = surname;
+            this.errorMessage = errorMessage;
+        }
+
+        public int getUserId() { return userId; }
+        public String getEmail() { return email; }
+        public String getName() { return name; }
+        public String getSurname() { return surname; }
+        public String getErrorMessage() { return errorMessage; }
+        public boolean isSuccess() { return errorMessage == null || errorMessage.isBlank(); }
+    }
+
     public List<SeatDto> getSeats(int filmShowId) {
 
         try {

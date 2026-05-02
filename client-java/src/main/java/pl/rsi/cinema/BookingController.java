@@ -48,6 +48,8 @@ public class BookingController {
     @FXML
     private TextField registerName;
     @FXML
+    private TextField registerSurname;
+    @FXML
     private TextField registerEmail;
     @FXML
     private PasswordField registerPassword;
@@ -111,6 +113,7 @@ public class BookingController {
     private TableView<MovieFromServer> moviesTable;
     private final Map<String, Set<String>> occupancyMap = new HashMap<>();
     private int currentFilmShowId = -1;
+    private final Map<String, Integer> seatIdMap = new HashMap<>();
 
     @FXML
     public void initialize() {
@@ -425,44 +428,60 @@ public class BookingController {
         String email = loginEmail.getText();
         String password = loginPassword.getText();
 
-        // Wywołujemy statyczną metodę z klasy pomocniczej
         String error = LoginController.validateLogin(email, password);
         if (error != null) {
             showAlert("Błąd", error);
             return;
         }
 
-        if (LoginController.performLogin(email, password)) {
-            hideAuthOverlay(); // TO sprawi, że nakładka zniknie i zobaczysz kino!
+        CinemaServerService.UserLoginDto result = serverService.login(email, password);
+        if (result != null && result.isSuccess()) {
+            UserService.getInstance().setCurrentUser(
+                    new User(result.getUserId(), result.getEmail(), result.getUserName()));
+            hideAuthOverlay();
         } else {
-            System.out.println("EMAIL FIELD: " + loginEmail);
-            System.out.println("EMAIL TEXT: " + (loginEmail != null ? loginEmail.getText() : "NULL"));
-            showAlert("Błąd", "Nieprawidłowe dane logowania");
+            String errMsg = (result != null && result.getErrorMessage() != null && !result.getErrorMessage().isBlank())
+                    ? result.getErrorMessage()
+                    : "Nieprawidłowe dane logowania";
+            showAlert("Błąd logowania", errMsg);
         }
-        System.out.println("VISIBLE: " + authOverlay.isVisible());
-        System.out.println("MANAGED: " + authOverlay.isManaged());
-        System.out.println("MOUSE: " + authOverlay.isMouseTransparent());
-        System.out.println("authOverlay parent = " + authOverlay.getParent());
-        System.out.println("Kliknięto logowanie!");
     }
 
     @FXML
     public void handleRegister() {
         String name = registerName.getText();
+        String surname = registerSurname != null ? registerSurname.getText() : "";
         String email = registerEmail.getText();
         String pass = registerPassword.getText();
         String confirm = registerConfirmPassword.getText();
 
-        String error = RegisterController.validateRegister(name, email, pass, confirm);
+        String error = RegisterController.validateRegister(name, surname, email, pass, confirm);
         if (error != null) {
             showAlert("Błąd", error);
             return;
         }
 
-        if (RegisterController.performRegister(email, pass, name)) {
-            showAlert("Sukces", "Zarejestrowano! Możesz się zalogować.");
-            showLoginForm();
+        CinemaServerService.RegisterResultDto result = serverService.register(name, surname, email, pass, confirm);
+        if (result != null && result.isSuccess()) {
+            UserService.getInstance().setCurrentUser(
+                    new User(result.getUserId(), result.getEmail(),
+                            (result.getName() != null ? result.getName() : name) + " " +
+                            (result.getSurname() != null ? result.getSurname() : surname)));
+            hideAuthOverlay();
+        } else {
+            String errMsg = (result != null && result.getErrorMessage() != null && !result.getErrorMessage().isBlank())
+                    ? result.getErrorMessage()
+                    : "Błąd rejestracji. Sprawdź dane i spróbuj ponownie.";
+            showAlert("Błąd rejestracji", errMsg);
         }
+    }
+
+    @FXML
+    public void handleLogout() {
+        UserService.getInstance().logout();
+        loginEmail.clear();
+        loginPassword.clear();
+        showLoginForm();
     }
 
     private void hideAuthOverlay() {
@@ -516,6 +535,7 @@ public class BookingController {
         seatController.resetAllSeatsToFree();
         seatsListContainer.getChildren().clear();
         selectedSeatKeys.clear();
+        seatIdMap.clear();
 
         if (currentFilmShowId == -1)
             return;
@@ -530,6 +550,7 @@ public class BookingController {
         for (CinemaServerService.SeatDto s : seats) {
 
             String key = s.getRowNum() + "," + s.getNumber();
+            seatIdMap.put(key, s.getSeatId());
 
             if (s.isTaken()) {
                 occupied.add(key);
@@ -541,44 +562,126 @@ public class BookingController {
 
     @FXML
     private void handleConfirmReservation(ActionEvent event) {
+        User currentUser = UserService.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            showAlert("Błąd", "Musisz być zalogowany, aby dokonać rezerwacji.");
+            return;
+        }
+
         String currentDate = MovieDate.getValue();
-        if (selectedSeatKeys.isEmpty() || selectedTime.isEmpty() || currentDate == null)
+        if (selectedSeatKeys.isEmpty() || selectedTime.isEmpty() || currentDate == null || currentFilmShowId == -1)
             return;
 
-        // 1. Zapisujemy do mapy pod kluczem łączonym "Data_Godzina"
-        String sessionKey = currentDate + "_" + selectedTime;
-        occupancyMap.computeIfAbsent(sessionKey, k -> new HashSet<>()).addAll(selectedSeatKeys);
+        List<Integer> seatIds = new ArrayList<>();
+        for (String key : selectedSeatKeys) {
+            Integer seatId = seatIdMap.get(key);
+            if (seatId != null) seatIds.add(seatId);
+        }
 
-        // 2. Dodajemy wpis do lewego panelu (Potwierdzone)
-        VBox reservationBox = new VBox(5);
-        reservationBox.setStyle(
-                "-fx-border-color: #313131; -fx-border-radius: 5; -fx-padding: 10; -fx-background-color: #1a1a1a;");
+        if (seatIds.isEmpty()) {
+            showAlert("Błąd", "Nie można ustalić identyfikatorów miejsc. Odśwież siedzenia.");
+            return;
+        }
 
-        Label infoLabel = new Label("Diuna | " + currentDate + " | Godz: " + selectedTime);
-        infoLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+        CinemaServerService.ReservationCreateResultDto result =
+                serverService.createReservation(currentUser.getUserId(), currentFilmShowId, seatIds);
+
+        if (result == null) {
+            showAlert("Błąd", "Nie udało się zapisać rezerwacji na serwerze.");
+            return;
+        }
+
+        final int reservationId = result.getReservationId();
+        final int filmShowId = currentFilmShowId;
+        final String capturedTime = selectedTime;
+        final Set<String> capturedSeatKeys = new HashSet<>(selectedSeatKeys);
+        final List<Integer> capturedSeatIds = new ArrayList<>(seatIds);
+
+        MovieFromServer selectedMovie = moviesTable.getSelectionModel().getSelectedItem();
+        String movieTitle = (selectedMovie != null) ? selectedMovie.getTitle()
+                : (titleLabel != null ? titleLabel.getText() : "Film");
 
         StringBuilder seatsSummary = new StringBuilder();
         for (String key : selectedSeatKeys) {
             String[] parts = key.split(",");
             char rowLetter = (char) ('A' + Integer.parseInt(parts[0]) - 1);
-            if (seatsSummary.length() > 0)
-                seatsSummary.append(", ");
+            if (seatsSummary.length() > 0) seatsSummary.append(", ");
             seatsSummary.append(rowLetter).append(parts[1]);
         }
 
-        Label seatsLabel = new Label("Miejsca: " + seatsSummary.toString());
+        VBox reservationBox = new VBox(5);
+        reservationBox.setStyle(
+                "-fx-border-color: #313131; -fx-border-radius: 5; -fx-padding: 10; -fx-background-color: #1a1a1a;");
+
+        Label infoLabel = new Label(movieTitle + " | " + currentDate + " | Godz: " + selectedTime);
+        infoLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+        Label seatsLabel = new Label("Miejsca: " + seatsSummary);
         seatsLabel.setStyle("-fx-text-fill: #aaa; -fx-font-size: 11;");
 
-        reservationBox.getChildren().addAll(infoLabel, seatsLabel);
+        Button editBtn = new Button("Edytuj");
+        editBtn.setStyle(
+                "-fx-background-color: #0078D7; -fx-text-fill: white; -fx-font-size: 10; -fx-background-radius: 4;");
+
+        Button deleteBtn = new Button("Usuń");
+        deleteBtn.setStyle(
+                "-fx-background-color: #ff4444; -fx-text-fill: white; -fx-font-size: 10; -fx-background-radius: 4;");
+
+        HBox buttonsBox = new HBox(5, editBtn, deleteBtn);
+
+        reservationBox.getChildren().addAll(infoLabel, seatsLabel, buttonsBox);
+
+        deleteBtn.setOnAction(e -> handleDeleteReservation(reservationId, reservationBox));
+        editBtn.setOnAction(e -> enterEditMode(
+                reservationId, filmShowId, capturedSeatKeys, capturedSeatIds, reservationBox, capturedTime));
+
         seatsListContainer1.getChildren().add(reservationBox);
 
-        // 3. Resetujemy wybór (ale zostawiamy datę zaznaczoną)
         seatController.markSelectedAsOccupied(selectedSeatKeys);
         seatsListContainer.getChildren().clear();
         selectedSeatKeys.clear();
         resetButtonToDefault(currentSelectedTimeButton);
         selectedTime = "";
         refreshOccupancy();
+    }
+
+    private void handleDeleteReservation(int reservationId, VBox box) {
+        User currentUser = UserService.getInstance().getCurrentUser();
+        if (currentUser == null) return;
+
+        boolean ok = serverService.deleteReservation(currentUser.getUserId(), reservationId);
+        if (ok) {
+            seatsListContainer1.getChildren().remove(box);
+            refreshOccupancy();
+        } else {
+            showAlert("Błąd", "Nie udało się usunąć rezerwacji. Seans mógł już minąć.");
+        }
+    }
+
+    private void enterEditMode(int reservationId, int filmShowId, Set<String> seatKeys,
+                               List<Integer> seatIds, VBox box, String time) {
+        User currentUser = UserService.getInstance().getCurrentUser();
+        if (currentUser == null) return;
+
+        boolean deleted = serverService.deleteReservation(currentUser.getUserId(), reservationId);
+        if (!deleted) {
+            showAlert("Błąd", "Nie można edytować tej rezerwacji. Seans mógł już minąć.");
+            return;
+        }
+
+        seatsListContainer1.getChildren().remove(box);
+
+        currentFilmShowId = filmShowId;
+        selectedTime = time;
+        refreshOccupancy();
+
+        for (String key : seatKeys) {
+            String[] parts = key.split(",");
+            int row = Integer.parseInt(parts[0]);
+            int col = Integer.parseInt(parts[1]);
+            seatController.preselectSeatColor(key);
+            addSeatToList(key, row, col);
+        }
     }
 
     // Pozostałe metody pomocnicze (addSeatToList, removeSeatFromList,
